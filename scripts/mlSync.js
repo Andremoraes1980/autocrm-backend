@@ -1,3 +1,4 @@
+console.log("🟢 mlSync.js iniciado!");
 // scripts/mlSync.js
 const { createClient } = require('@supabase/supabase-js');
 const axios = require("axios");
@@ -98,6 +99,7 @@ async function syncTodasRevendas() {
   const { data: integracoes, error } = await supabase
     .from("integracoes_ml")
     .select("revenda_id,access_token,user_id_ml")
+    
     .neq('access_token', null);
 
   if (error) {
@@ -105,11 +107,14 @@ async function syncTodasRevendas() {
     return;
   }
 
-  if (!integracoes?.length) {
-    console.log("⚠️ Nenhuma integração ativa encontrada.");
-    return;
-  }
-  console.log("🔍 Integrações encontradas:", integracoes?.length, integracoes);
+  console.log("🟢 Dados brutos recebidos do Supabase:", integracoes);
+
+if (!integracoes || !integracoes.length) {
+  console.log("⚠️ Nenhuma integração retornada do Supabase.");
+  return;
+} else {
+  console.log("👍 Vai entrar no loop, total:", integracoes.length);
+}
 
   for (const integracao of integracoes) {
     await importarLeadsML(integracao);
