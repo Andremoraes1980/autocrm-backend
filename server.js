@@ -133,7 +133,11 @@ app.post('/api/ml-auth', async (req, res) => {
 });
 
 // === NOVA ROTA: Automação de status de leads ===
+
 app.post('/api/evento-mensagem', async (req, res) => {
+  // No início da rota /api/evento-mensagem:
+console.log("🔥 Evento de mensagem recebido:", req.body);
+
   try {
     const { lead_id, tipo, direcao, usuario_id, conteudo } = req.body;
     // tipo: "texto", "audio", "imagem", etc.
