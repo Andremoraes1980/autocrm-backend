@@ -173,27 +173,29 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
       precisaAtualizar = true;
       descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
     } else if (lead.etapa === "nao_respondido" && direcao === "saida") {
-      novaEtapa = "em_negociacao";
+      novaEtapa = "negociacao";
       precisaAtualizar = true;
       descricaoEvento = "Usuário respondeu: movido para Em Negociação";
-    } else if (lead.etapa === "em_negociacao" && direcao === "entrada") {
+    } else if (lead.etapa === "negociacao" && direcao === "entrada") {
       novaEtapa = "nao_respondido";
       precisaAtualizar = true;
       descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
-    } else if (lead.etapa === "em_negociacao" && direcao === "saida") {
+    } else if (lead.etapa === "negociacao" && direcao === "saida") {
       // Permanece em negociação
       descricaoEvento = "Usuário respondeu: permanece Em Negociação";
     }
 
     // Atualiza etapa do lead se necessário
     if (precisaAtualizar && novaEtapa !== lead.etapa) {
+      console.log(`[LOG] Atualizando lead_id ${lead_id}: etapa será "${novaEtapa}" (antes era "${lead.etapa}")`);
+
       await supabase
         .from('leads')
         .update({ etapa: novaEtapa })
         .eq('id', lead_id);
     }
 
-    // Sempre registra no timeline
+    // Sempre registra no timelin
     const eventoTimeline = {
       lead_id,
       tipo: "etapa_automatica",
