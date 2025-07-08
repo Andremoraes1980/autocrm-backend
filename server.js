@@ -295,6 +295,26 @@ app.post('/api/automacoes-mensagens', async (req, res) => {
   res.json(data[0]);
 });
 
+app.get('/api/templates', async (req, res) => {
+  const status = req.query.status || 'aprovado'; // permite filtrar por status se quiser
+
+  try {
+    const { data, error } = await supabase
+      .from('templates')
+      .select('*')
+      .eq('status', status);
+
+    if (error) {
+      console.error("Erro ao buscar templates:", error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(data);
+  } catch (err) {
+    console.error("Erro inesperado ao buscar templates:", err);
+    res.status(500).json({ error: 'Erro inesperado no backend.' });
+  }
+});
+
 
 
 // Inicializa servidor
