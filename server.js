@@ -357,6 +357,15 @@ app.post('/api/templates', async (req, res) => {
 });
 
 
+app.delete('/api/automacoes-mensagens/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('automacoes_mensagens').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+
+
 
 
 
