@@ -1,10 +1,54 @@
 // backend/server.js
 
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
 require('dotenv').config();
 require('./jobs/agendador');
+
+const express = require('express');
+const app = express();
+
+const http = require('http');
+const server = http.createServer(app);
+
+
+const axios = require('axios');
+const cors = require('cors');
+
+
+
+const { io: ioClient } = require('socket.io-client');
+
+
+const { Server } = require('socket.io');
+
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "https://autocrmleads.com.br",
+      "https://autocrmleads.vercel.app",
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Conecta como cliente no provider do AWS
+const socketProvider = ioClient('https://socket.autocrmleads.com.br', {
+  // secure: true, etc (se necessário)
+});
+
+socketProvider.on('connect', () => {
+  console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
+});
+socketProvider.on('disconnect', () => {
+  console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
+});
+
+// Repasse do QR Code recebido do provider para todos frontends conectados
+socketProvider.on('qrCode', (data) => {
+  console.log('🟢 QR Code recebido do provider (AWS). Repassando ao frontend...');
+  io.emit('qrCode', data);
+});
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
@@ -14,7 +58,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY // Service Role para inserção backend
 );
 
-const app = express();
+
 
 // Middleware para aceitar JSON
 app.use(express.json()); // <- MOVIDO PARA O TOPO
@@ -420,6 +464,6 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
 
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Backend rodando em http://localhost:${PORT}`);
 });
