@@ -25,6 +25,9 @@ const io = new Server(server, {
     origin: [
       "https://autocrmleads.com.br",
       "https://autocrmleads.vercel.app",
+      "http://localhost:5001",
+      "https://autocrm-backend.onrender.com",  // pode deixar para testes
+      "https://socket.autocrmleads.com.br",
       "http://localhost:5173"
     ],
     methods: ["GET", "POST"],
