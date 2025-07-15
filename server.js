@@ -36,7 +36,8 @@ const io = new Server(server, {
 });
 
 // Conecta como cliente no provider do AWS
-const socketProvider = ioClient("https://socket.autocrmleads.com.br", {
+const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
+
   transports: ["websocket"],
   secure: true,
   reconnection: true,
@@ -53,11 +54,22 @@ socketProvider.on('disconnect', () => {
   console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
 });
 
-// Repasse do QR Code recebido do provider para todos frontends conectados
 socketProvider.on('qrCode', (data) => {
-  console.log('🟢 QR Code recebido do provider (AWS). Repassando ao frontend...');
+  console.log('📷 QR Code recebido do provider:', data);
   io.emit('qrCode', data);
 });
+
+
+// === Etapa 2: listener de conexões dos frontends ===
+io.on('connection', (socket) => {
+  console.log(`👤 Cliente frontend conectado: ${socket.id}`);
+  socket.on('disconnect', () => {
+    console.log(`❌ Cliente desconectado: ${socket.id}`);
+  });
+});
+
+
+
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
