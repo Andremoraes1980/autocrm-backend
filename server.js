@@ -36,8 +36,10 @@ const io = new Server(server, {
 });
 
 // Conecta como cliente no provider do AWS
-const socketProvider = ioClient('https://socket.autocrmleads.com.br', {
-  // secure: true, etc (se necessário)
+const socketProvider = ioClient("https://socket.autocrmleads.com.br", {
+  transports: ["websocket"],
+  secure: true,
+  reconnection: true,
 });
 
 socketProvider.on('connect', () => {
