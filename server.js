@@ -40,7 +40,11 @@ const socketProvider = ioClient("https://socket.autocrmleads.com.br", {
   transports: ["websocket"],
   secure: true,
   reconnection: true,
+  extraHeaders: {
+    origin: "https://autocrm-backend.onrender.com"
+  }
 });
+
 
 socketProvider.on('connect', () => {
   console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
