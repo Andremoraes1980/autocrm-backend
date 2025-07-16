@@ -67,6 +67,19 @@ io.on('connection', (socket) => {
   console.log(`👤 Cliente frontend conectado: ${socket.id}`);
   socket.on('disconnect', () => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
+
+    // Quando o provider enviar a mensagem recebida:
+  socket.on('mensagemRecebida', payload => {
+    console.log('📥 Recebido mensagemRecebida do provider:', payload);
+    io.emit('mensagemRecebida', payload);
+  });
+
+   // Quando o provider enviar áudio reenviado:
+   socket.on('audioReenviado', payload => {
+    console.log('🔊 Recebido audioReenviado do provider:', payload);
+    io.emit('audioReenviado', payload);
+  });
+  
   });
 });
 
