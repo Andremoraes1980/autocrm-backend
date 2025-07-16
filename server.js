@@ -1,6 +1,7 @@
 // backend/server.js
 
 require('dotenv').config();
+console.log('🔍 PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 require('./jobs/agendador');
 
 const express = require('express');
@@ -45,6 +46,7 @@ const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
     origin: "https://autocrm-backend.onrender.com"
   }
 });
+console.log('🔌 Tentando conectar ao provider...');
 
 
 socketProvider.on('connect', () => {
