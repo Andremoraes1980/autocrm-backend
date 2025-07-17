@@ -3,25 +3,18 @@
 require('dotenv').config();
 console.log('🔍 PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 require('./jobs/agendador');
+const axios = require('axios');
+const cors = require('cors');
+const { io: ioClient } = require('socket.io-client');
 
 const express = require('express');
 const app = express();
-
 const http = require('http');
+const socketIo = require('socket.io');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
-
-
-
-const axios = require('axios');
-const cors = require('cors');
-
-
-
-const { io: ioClient } = require('socket.io-client');
-
-
 const { Server } = require('socket.io');
+
 
 const io = new Server(server, {
   cors: {
@@ -45,7 +38,9 @@ const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
   secure: true,
   reconnection: true,
   extraHeaders: {
-    origin: "https://autocrm-backend.onrender.com"
+    origin: ["https://socket.autocrmleads.com.br",
+    "https://autocrm-backend.onrender.com"
+  ]
   }
 });
 console.log('🔌 Tentando conectar ao provider...');
@@ -885,5 +880,6 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Backend rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Backend escutando na porta ${PORT}`);
+
 });
