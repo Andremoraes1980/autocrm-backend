@@ -33,26 +33,32 @@ const io = new Server(server, {
 
 // Conecta como cliente no provider do AWS
 const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
-
   transports: ["websocket"],
   secure: true,
   reconnection: true,
-  extraHeaders: {
-    origin: ["https://socket.autocrmleads.com.br",
-    "https://autocrm-backend.onrender.com"
-  ]
-  }
 });
+
 console.log('🔌 Tentando conectar ao provider...');
 
-
+// ✅ Conexão bem-sucedida
 socketProvider.on('connect', () => {
   console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
 });
+
+// 🔴 Desconectado
 socketProvider.on('disconnect', () => {
   console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
 });
 
+// ✅ DEVE vir depois do .on('connect') para ter contexto real
+console.log("📡 socketProvider conectado?", socketProvider.connected);
+
+// ✅ NOVO: log genérico para capturar qualquer evento emitido pelo provider
+socketProvider.onAny((event, ...args) => {
+  console.log('📡 Evento recebido de provider:', event, args);
+});
+
+// ✅ Listener específico para qrCode
 socketProvider.on('qrCode', (data) => {
   console.log('📷 Payload do QR recebido do provider:', data);
 
@@ -65,13 +71,14 @@ socketProvider.on('qrCode', (data) => {
 
   QRCode.toDataURL(qrString)
     .then(url => {
-      console.log('✅ DataURL gerado do QR:', url.slice(0,30) + '…');
+      console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
       io.emit('qrCode', { qr: url });
     })
     .catch(err => {
       console.error('❌ Erro ao gerar DataURL do QR:', err);
     });
 });
+
 
 
 
