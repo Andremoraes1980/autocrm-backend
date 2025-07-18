@@ -59,25 +59,30 @@ socketProvider.onAny((event, ...args) => {
 });
 
 // ✅ Listener específico para qrCode
-socketProvider.on('qrCode', (data) => {
-  console.log('📷 Payload do QR recebido do provider:', data);
+io.on('connection', (socket) => {
+  console.log("📡 Nova conexão recebida:", socket.id);
 
-  const qrString = typeof data === 'string' ? data : data?.qr;
+  socket.on('qrCode', (data) => {
+    console.log("📷 Payload do QR recebido do provider:", data);
 
-  if (!qrString) {
-    console.error('❌ QR inválido recebido:', data);
-    return;
-  }
+    const qrString = typeof data === 'string' ? data : data?.qr;
 
-  QRCode.toDataURL(qrString)
-    .then(url => {
-      console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
-      io.emit('qrCode', { qr: url });
-    })
-    .catch(err => {
-      console.error('❌ Erro ao gerar DataURL do QR:', err);
-    });
+    if (!qrString) {
+      console.error('❌ QR inválido recebido:', data);
+      return;
+    }
+
+    QRCode.toDataURL(qrString)
+      .then(url => {
+        console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
+        io.emit('qrCode', { qr: url });
+      })
+      .catch(err => {
+        console.error('❌ Erro ao gerar DataURL do QR:', err);
+      });
+  });
 });
+
 
 
 
