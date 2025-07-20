@@ -393,9 +393,28 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         console.error("❌ Provider retornou erro:", err);
         reject(new Error(err.error || 'Falha no envio pelo provider'));
       });
-      console.log("📡 Emitindo via socket → enviarMensagem");
-      socketProvider.emit('enviarMensagem', { para, mensagem });
-    });
+  
+      // ⚠️ Esta parte estava fora da Promise, agora está corretamente incluída
+    const direcaoSocket = remetente_id ? 'saida' : 'entrada';
+    const mensagemPayload = {
+      mensagem,
+      lead_id,
+      tipo: tipo || 'texto',
+      canal: canal || 'WhatsApp Cockpit',
+      direcao: direcaoSocket,
+      remetente,
+      remetente_id,
+      telefone_cliente: telefone_cliente || null,
+      lida: typeof lida === "boolean" ? lida : false,
+    };
+
+
+console.log("📡 Emitindo via socket → enviarMensagem com payload:", {
+  para,
+  mensagem: mensagemPayload
+});
+socketProvider.emit('enviarMensagem', { para, mensagem: mensagemPayload });
+});
 
     // 2. Só depois do envio, busca dados extras do lead:
     const { data: leadData, error: leadError } = await supabase
