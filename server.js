@@ -58,9 +58,57 @@ socketProvider.onAny((event, ...args) => {
   console.log('📡 Evento recebido de provider:', event, args);
 });
 
-// ✅ Listener específico para qrCode
 io.on('connection', (socket) => {
-  console.log("📡 Nova conexão recebida:", socket.id);
+  console.log("🟢 Cliente conectado:", socket.id);
+
+  socket.on('entrarNaSala', ({ lead_id }) => {
+    if (lead_id) {
+      const room = `lead-${lead_id}`;
+      socket.join(room);
+      console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
+    } else {
+      console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
+    }
+  });
+
+
+  // 1. Recebe pedido para gerar QR Code
+  socket.on('gerarQRCode', () => {
+    console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
+    socketProvider.emit('gerarQRCode');
+  });
+
+  // 2. Repassa mensagens recebidas do provider
+  socketProvider.on('mensagemRecebida', (payload) => {
+    const { lead_id } = payload;
+    console.log('📥 Recebido mensagemRecebida do provider:', payload);
+  
+    if (lead_id) {
+      io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
+      console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
+    } else {
+      console.warn('⚠️ Payload sem lead_id. Não foi possível emitir mensagem para sala específica.');
+    }
+  });
+  
+
+  socketProvider.on('audioReenviado', (payload) => {
+    console.log('🔊 Recebido audioReenviado do provider:', payload);
+    io.emit('audioReenviado', payload);
+  });
+
+  // 3. Mensagem enviada do frontend para o provider
+  socket.on("mensagemTexto", async (payload, callback) => {
+    console.log("📨 [socket] Recebida mensagemTexto:", payload);
+    // ... (mesma lógica que você já tem para envio e gravação)
+  });
+
+  socket.on('entrarNaSala', ({ lead_id }) => {
+    if (lead_id) {
+      socket.join(`lead-${lead_id}`);
+      console.log(`👥 Socket ${socket.id} entrou na sala lead-${lead_id}`);
+    }
+  });
 
   socket.on('qrCode', (data) => {
     console.log("📷 Payload do QR recebido do provider:", data);
@@ -81,38 +129,14 @@ io.on('connection', (socket) => {
         console.error('❌ Erro ao gerar DataURL do QR:', err);
       });
   });
-});
-
-
-
-
-
-// === Etapa 2: listener de conexões dos frontends ===
-io.on('connection', (socket) => {
-  console.log(`👤 Cliente frontend conectado: ${socket.id}`);
-
-  socket.on('gerarQRCode', () => {
-    console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
-    socketProvider.emit('gerarQRCode'); // Repasse para o provider via socket
-  });  
-
-    // Quando o provider enviar a mensagem recebida:
-  socket.on('mensagemRecebida', payload => {
-    console.log('📥 Recebido mensagemRecebida do provider:', payload);
-    io.emit('mensagemRecebida', payload);
-  });
-
-   // Quando o provider enviar áudio reenviado:
-   socket.on('audioReenviado', payload => {
-    console.log('🔊 Recebido audioReenviado do provider:', payload);
-    io.emit('audioReenviado', payload);
-  });
 
   socket.on('disconnect', () => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
-  
   });
 });
+
+
+  
 
 
 
