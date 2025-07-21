@@ -100,7 +100,22 @@ io.on('connection', (socket) => {
   // 3. Mensagem enviada do frontend para o provider
   socket.on("mensagemTexto", async (payload, callback) => {
     console.log("📨 [socket] Recebida mensagemTexto:", payload);
-    // ... (mesma lógica que você já tem para envio e gravação)
+  
+    try {
+      // Repassa a mensagem para o provider
+      socketProvider.emit('enviarMensagem', payload);
+  
+      // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
+      socketProvider.once('mensagemEnviada', (ok) => {
+        if (callback) callback({ status: 'ok', ...ok });
+      });
+      socketProvider.once('erroEnvio', (err) => {
+        if (callback) callback({ status: 'erro', ...err });
+      });
+    } catch (err) {
+      console.error('❌ Erro ao repassar para provider:', err);
+      if (callback) callback({ status: 'erro', error: err.message });
+    }
   });
 
   socket.on('entrarNaSala', ({ lead_id }) => {
