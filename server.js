@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
   // 1. Recebe pedido para gerar QR Code
   socket.on('gerarQRCode', () => {
     console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
-    socketProvider.emit('gerarQRCode');
+    socket.emit('gerarQRCode');
   }); 
 
     
