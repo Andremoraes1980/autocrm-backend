@@ -367,17 +367,25 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
         7000
       );
-      socketProvider.once('mensagemEnviada', (ok) => {
-        clearTimeout(timeout);
-        console.log("✅ Provider confirmou envio:", ok);
-        resolve(ok);
-      });
-      socketProvider.once('erroEnvio', (err) => {
-        clearTimeout(timeout);
-        console.error("❌ Provider retornou erro:", err);
-        reject(new Error(err.error || 'Falha no envio pelo provider'));
-      });
-      console.log("📡 Emitindo via socket → enviarMensagem");
+       // 1. Defina listeners antes de emitir!
+  const okListener = (ok) => {
+    clearTimeout(timeout);
+    resolve(ok);
+    cleanup();
+  };
+  const errListener = (err) => {
+    clearTimeout(timeout);
+    reject(new Error(err.error || 'Falha no envio pelo provider'));
+    cleanup();
+  };
+  function cleanup() {
+    socketProvider.off('mensagemEnviada', okListener);
+    socketProvider.off('erroEnvio', errListener);
+  }
+  socketProvider.once('mensagemEnviada', okListener);
+  socketProvider.once('erroEnvio', errListener);
+  // 2. Agora emite
+  console.log("📡 Emitindo via socket → enviarMensagem");
       socketProvider.emit('enviarMensagem', { para, mensagem });
     });
 
@@ -553,7 +561,7 @@ app.post('/api/enviar-midia', async (req, res) => {
   }
 });
 
-app.post('/api/reenviar-arquivo', async (req, res) => {
+app.post('/api/reenviar-arquivo', async (req, res) => {mensagemRecebida
   const { mensagemId } = req.body;
   if (!mensagemId) {
     console.error('🔴 mensagemId obrigatório');
