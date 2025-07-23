@@ -76,6 +76,28 @@ socketProvider.on('audioReenviado', (payload) => {
   io.emit('audioReenviado', payload);
 });
 
+// --- RECEBE do PROVIDER (fora do io.on('connection')) ---
+socketProvider.on('qrCode', (data) => {
+  console.log("📷 Payload do QR recebido do provider:", data);
+
+  const qrString = typeof data === 'string' ? data : data?.qr;
+
+  if (!qrString) {
+    console.error('❌ QR inválido recebido:', data);
+    return;
+  }
+
+  QRCode.toDataURL(qrString)
+    .then(url => {
+      ultimoQrCodeDataUrl = url;
+      console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
+      io.emit('qrCode', { qr: url }); // Envia para TODOS os frontends conectados
+    })
+    .catch(err => {
+      console.error('❌ Erro ao gerar DataURL do QR:', err);
+    });
+});
+
 
 
 io.on('connection', (socket) => {
@@ -95,31 +117,17 @@ io.on('connection', (socket) => {
   // 1. Recebe pedido para gerar QR Code
   socket.on('gerarQRCode', () => {
     console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
-    socket.emit('gerarQRCode');
-  }); 
+    socketProvider.emit('gerarQRCode');
 
-    
-
-  socket.on('qrCode', (data) => {
-    console.log("📷 Payload do QR recebido do provider:", data);
-
-    const qrString = typeof data === 'string' ? data : data?.qr;
-
-    if (!qrString) {
-      console.error('❌ QR inválido recebido:', data);
-      return;
+    // --- (Opcional) Reenvia o último QR se já existir ---
+    if (ultimoQrCodeDataUrl) {
+      socket.emit('qrCode', { qr: ultimoQrCodeDataUrl });
+      console.log('♻️ Reenviei último QR pro frontend:', socket.id);
     }
+  }); 
+  
 
-    QRCode.toDataURL(qrString)
-      .then(url => {
-        console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
-        io.emit('qrCode', { qr: url });
-      })
-      .catch(err => {
-        console.error('❌ Erro ao gerar DataURL do QR:', err);
-      });
-  });
-
+  
   socket.on('disconnect', () => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
