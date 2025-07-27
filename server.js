@@ -1,6 +1,14 @@
 // backend/server.js
 
 require('dotenv').config();
+
+// === ADICIONADO: Supabase Client para salvar leads Webmotors ===
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Service Role para inserção backend
+);
+
 console.log('🔍 PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 require('./jobs/agendador');
 const axios = require('axios');
@@ -14,6 +22,23 @@ const socketIo = require('socket.io');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
+
+// Middleware para aceitar JSON
+app.use(express.json()); // <- MOVIDO PARA O TOPO
+
+// Habilita CORS apenas para seus domínios de produção
+app.use(cors({
+  origin: [
+    "https://autocrmleads.vercel.app",
+    "https://autocrmleads.com.br",
+    "https://www.autocrmleads.com.br",
+    "http://localhost:5173" // remove depois se não for usar local
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
+
 
 
 const io = new Server(server, {
@@ -33,7 +58,7 @@ const io = new Server(server, {
 
 // Conecta como cliente no provider do AWS
 const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
   secure: true,
   reconnection: true,
   reconnectionAttempts: 10,
@@ -180,31 +205,6 @@ async function buscarLeadIdPorTelefone(telefone) {
 }
 
 
-
-// === ADICIONADO: Supabase Client para salvar leads Webmotors ===
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Service Role para inserção backend
-);
-
-
-
-// Middleware para aceitar JSON
-app.use(express.json()); // <- MOVIDO PARA O TOPO
-
-// Habilita CORS apenas para seus domínios de produção
-app.use(cors({
-  origin: [
-    "https://autocrmleads.vercel.app",
-    "https://autocrmleads.com.br",
-    "https://www.autocrmleads.com.br",
-    "http://localhost:5173" // remove depois se não for usar local
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
-console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
 
 // Log origem da requisição
 app.use((req, res, next) => {
