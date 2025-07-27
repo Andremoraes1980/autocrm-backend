@@ -131,12 +131,17 @@ io.on('connection', (socket) => {
       console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
     }
   });
-  // aguarda 2s e emite um “ping” de teste
-  setTimeout(() => {
-    const teste = { lead_id, mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' } };
-    io.to(room).emit('mensagemRecebida', teste);
+  // ============ TESTE REAL‑TIME ============
+   // dispara 2s depois, dentro do handler, então lead_id está definido
+   setTimeout(() => {
+    const pingMsg = {
+      lead_id, 
+      mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' }
+    };
+    io.to(room).emit('mensagemRecebida', pingMsg);
     console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
   }, 2000);
+  // ========================================
 
 
   // 1. Recebe pedido para gerar QR Code
