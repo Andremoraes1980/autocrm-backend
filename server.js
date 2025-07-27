@@ -126,11 +126,8 @@ io.on('connection', (socket) => {
     if (lead_id) {
       const room = `lead-${lead_id}`;      
       socket.join(room);
-      console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
-    } else {
-      console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
-    }
-  });
+      console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);    
+ 
   // ============ TESTE REAL‑TIME ============
    // dispara 2s depois, dentro do handler, então lead_id está definido
    setTimeout(() => {
@@ -142,7 +139,10 @@ io.on('connection', (socket) => {
     console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
   }, 2000);
   // ========================================
-
+} else {
+  console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
+}
+});
 
   // 1. Recebe pedido para gerar QR Code
   socket.on('gerarQRCode', () => {
