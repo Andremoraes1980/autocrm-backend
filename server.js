@@ -22,22 +22,12 @@ const socketIo = require('socket.io');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
-
-// Middleware para aceitar JSON
-app.use(express.json()); // <- MOVIDO PARA O TOPO
-
-// Habilita CORS apenas para seus domínios de produção
-app.use(cors({
-  origin: [
-    "https://autocrmleads.vercel.app",
-    "https://autocrmleads.com.br",
-    "https://www.autocrmleads.com.br",
-    "http://localhost:5173" // remove depois se não for usar local
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
-console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
+const receberMensagem = require('./listeners/provider/receberMensagem');
+const buscarLeadIdPorTelefone = require('../../../services/buscarLeadIdPorTelefone');
+const audioReenviado = require('./listeners/provider/audioReenviado');
+const socketProvider = require('./connections/socketProvider');
+const socketFrontend = require('./connections/socketFrontend');
+const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 
 
 
@@ -56,154 +46,44 @@ const io = new Server(server, {
   }
 });
 
-// Conecta como cliente no provider do AWS
-const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
-  transports: ["websocket", "polling"],
-  secure: true,
-  reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 5000,
-});
+global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
+socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
 
-console.log('🔌 Tentando conectar ao provider...');
 
-// ✅ Conexão bem-sucedida
-socketProvider.on('connect', () => {
-  console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
-});
+// Listeners já modularizados corretamente:
 
-// 🔴 Desconectado
-socketProvider.on('disconnect', () => {
-  console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
-});
+// 1. Repassa mensagens recebidas do provider
+// Arquivo: backend/listeners/provider/receberMensagem.js
 
-// ✅ DEVE vir depois do .on('connect') para ter contexto real
-console.log("📡 socketProvider conectado?", socketProvider.connected);
+receberMensagem(socketProvider, io);
 
-// ✅ NOVO: log genérico para capturar qualquer evento emitido pelo provider
-socketProvider.onAny((event, ...args) => {
-  console.log('📡 Evento recebido de provider:', event, args);
-});
+// Arquivo: backend/listeners/provider/audioReenviado.js
 
-// 2. Repassa mensagens recebidas do provider
-socketProvider.on('mensagemRecebida', (payload) => {
-  const { lead_id, telefone, mensagem } = payload;
-  console.log('📥 [REPASSE] chegou mensagemRecebida do provider:', payload);
-  console.log('🚦 [REPASSE] pronto para emitir na sala:', `lead-${lead_id}`);
+audioReenviado(socketProvider, io);
 
-  if (lead_id) {
-    io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
-    console.log('✅ [REPASSE] emitido mensagemRecebida para sala lead-' + lead_id);
-  } else {
-    // Tenta buscar o lead_id pelo telefone
-    const telefoneBusca = telefone || mensagem?.from;
-    if (telefoneBusca) {
-      console.log('⚙️ [REPASSE] fallback por telefone:', telefoneBusca);
-      buscarLeadIdPorTelefone(telefoneBusca)
-        .then((leadIdBanco) => {
-          if (leadIdBanco) {
-            io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { ...payload, lead_id: leadIdBanco });
-            console.log(`✅ [REPASSE] emitido mensagemRecebida para sala lead-${leadIdBanco} (por telefone ${telefoneBusca})`);
-          } else {
-            console.warn('⚠️ Não foi possível identificar lead_id pelo telefone:', telefoneBusca);
-          }
-        })
-        .catch((err) => {
-          console.error('Erro ao buscar lead_id pelo telefone:', err);
-        });
-    } else {
-      console.warn('⚠️ Payload sem lead_id e sem telefone. Não foi possível emitir mensagem para sala específica.');
-    }
-  }
-}); // <-- Fecha aqui!
-
-socketProvider.on('audioReenviado', (payload) => {
-  console.log('🔊 Recebido audioReenviado do provider:', payload);
-  io.emit('audioReenviado', payload);
-});
-
-// --- RECEBE do PROVIDER (fora do io.on('connection')) ---
-socketProvider.on('qrCode', (data) => {
-  console.log("📷 Payload do QR recebido do provider:", data);
-
-  const qrString = typeof data === 'string' ? data : data?.qr;
-
-  if (!qrString) {
-    console.error('❌ QR inválido recebido:', data);
-    return;
-  }
-
-  QRCode.toDataURL(qrString)
-    .then(url => {
-      ultimoQrCodeDataUrl = url;
-      console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
-      io.emit('qrCode', { qr: url }); // Envia para TODOS os frontends conectados
-    })
-    .catch(err => {
-      console.error('❌ Erro ao gerar DataURL do QR:', err);
-    });
-});
+//  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
+// Arquivo: backend/listeners/provider/receberQrCode.js
+receberQrCode(socketProvider, io);
 
 
 
-// server.js (trecho completo de io.on('connection'))
-io.on('connection', (socket) => {
-  console.log("🟢 Cliente conectado:", socket.id);
 
-  socket.on('entrarNaSala', ({ lead_id }) => {
-    if (!lead_id) {
-      console.warn(`⚠️ Socket ${socket.id} tentou entrar sem lead_id`);
-      return;
-    }
-    const room = `lead-${lead_id}`;
-    socket.join(room);
-    console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
 
-    // ======= TESTE REAL‑TIME =========
-   // setTimeout(() => {
-     // const pingMsg = {
-       // lead_id,
-    //    mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' }
-    //  };
-     // io.to(room).emit('mensagemRecebida', pingMsg);
-     // console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
-   // }, 2000);
-    // ==================================
-  });
+// Middleware para aceitar JSON
+app.use(express.json()); // <- MOVIDO PARA O TOPO
 
-  // 1. Recebe pedido para gerar QR Code
-  socket.on('gerarQRCode', () => {
-    console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
-    socketProvider.emit('gerarQRCode');
-
-    // --- (Opcional) Reenvia o último QR se já existir ---
-    if (ultimoQrCodeDataUrl) {
-      socket.emit('qrCode', { qr: ultimoQrCodeDataUrl });
-      console.log('♻️ Reenviei último QR pro frontend:', socket.id);
-    }
-  }); 
-  
-
-  
-  socket.on('disconnect', () => {
-    console.log(`❌ Cliente desconectado: ${socket.id}`);
-  });
-});
-
-async function buscarLeadIdPorTelefone(telefone) {
-  // Formate o telefone igual ao banco!
-  const tel = telefone.replace(/\D/g, ""); // Só dígitos
-  const { data, error } = await supabase
-    .from('leads') // Nome da tabela
-    .select('id')
-    .ilike('telefone', `%${tel}%`) // Ou ajuste conforme seu banco
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data.id;
-}
-
+// Habilita CORS apenas para seus domínios de produção
+app.use(cors({
+  origin: [
+    "https://autocrmleads.vercel.app",
+    "https://autocrmleads.com.br",
+    "https://www.autocrmleads.com.br",
+    "http://localhost:5173" // remove depois se não for usar local
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
 
 
 // Log origem da requisição
@@ -217,8 +97,6 @@ app.post('/api/ml-webhook', (req, res) => {
   console.log("🔔 Webhook recebido do Mercado Livre:", req.body);
   res.sendStatus(200);
 });
-
-
 
 // === AJUSTADO: Webmotors Leads - salva no Supabase ===
 app.post('/api/webmotors-leads', async (req, res) => {
