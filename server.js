@@ -28,6 +28,7 @@ const audioReenviado = require('./listeners/provider/audioReenviado');
 const socketProvider = require('./connections/socketProvider');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
+const receberQrCode = require('.listeners/provider/receberQrCode');
 
 
 
