@@ -17,15 +17,16 @@ const { io: ioClient } = require('socket.io-client');
 
 const express = require('express');
 const app = express();
-const http = require('http');
-const socketIo = require('socket.io');
+const http = require('http');methods:
 const server = http.createServer(app);
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
-const receberMensagem = require('./listeners/provider/receberMensagem');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
 const audioReenviado = require('./listeners/provider/audioReenviado');
-const socketProvider = require('./connections/socketProvider');
+/** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
+const socketProvider = require('./connections/socketProviderV2');
+const receberMensagem = require('./listeners/provider/receberMensagemV2');
+
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
@@ -42,7 +43,7 @@ const io = new Server(server, {
       "https://socket.autocrmleads.com.br",
       "http://localhost:5173"
     ],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST","OPTIONS"],
     credentials: true
   }
 });
@@ -500,7 +501,7 @@ app.post('/api/enviar-midia', async (req, res) => {
   }
 });
 
-app.post('/api/reenviar-arquivo', async (req, res) => {mensagemRecebida
+app.post('/api/reenviar-arquivo', async (req, res) => {
   const { mensagemId } = req.body;
   if (!mensagemId) {
     console.error('🔴 mensagemId obrigatório');

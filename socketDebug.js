@@ -19,6 +19,7 @@ socketProvider.on('connect', () => {
 });
 
 socketProvider.on('disconnect', () => {
+    
   console.log('[SOCKET DEBUG] Backend desconectado do provider!');
 });
 
