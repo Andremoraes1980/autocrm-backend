@@ -24,27 +24,14 @@ const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); /
 const audioReenviado = require('./listeners/provider/audioReenviado');
 /** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
 const socketProvider = require('./connections/socketProviderV2');
-//const receberMensagem = require('./listeners/provider/receberMensagemV2');
+const receberMensagem = require('./listeners/provider/receberMensagem');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
+const createSocketServer = require('./connections/socketServer');
+const io = createSocketServer(server);
 
 
-
-const io = new Server(server, {
-  cors: {
-    origin: [
-      "https://autocrmleads.com.br",
-      "https://autocrmleads.vercel.app",
-      "http://localhost:5001",
-      "https://autocrm-backend.onrender.com",  // pode deixar para testes
-      "https://socket.autocrmleads.com.br",
-      "http://localhost:5173"
-    ],
-    methods: ["GET", "POST",],
-    credentials: true
-  }
-});
 
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
 socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
@@ -64,38 +51,12 @@ io.on('connection', (socket) => {
   });
 
   // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
-  socket.on('mensagemRecebida', async (payload) => {
-    console.log('📥 [IO] mensagemRecebida recebida via io:', payload);
+  receberMensagem(socket, io);
 
-    const { lead_id, telefone, mensagem } = payload || {};
-    if (lead_id) {
-      io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
-      console.log(`✅ [REPASSE] emitido para sala lead-${lead_id}`);
-      return;
-    }
-
-    // Fallback por telefone (usa seu serviço existente)
-    try {
-      const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone');
-      const telefoneBusca =
-        telefone || mensagem?.from || mensagem?.telefone || mensagem?.telefone_cliente;
-
-      if (!telefoneBusca) {
-        console.warn('⚠️ [IO] payload sem lead_id e sem telefone — não foi possível emitir.');
-        return;
-      }
-
-      const leadIdBanco = await buscarLeadIdPorTelefone(telefoneBusca);
-      if (leadIdBanco) {
-        io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { ...payload, lead_id: leadIdBanco });
-        console.log(`✅ [REPASSE] emitido por telefone para sala lead-${leadIdBanco}`);
-      } else {
-        console.warn('⚠️ [IO] telefone não localizado no banco:', telefoneBusca);
-      }
-    } catch (err) {
-      console.error('❌ [IO] erro no fallback por telefone:', err?.message || err);
-    }
+  socket.on('disconnect', (reason) => {
+    console.log(`🔌 [IO] ${socket.id} desconectou — motivo:`, reason);
   });
+
 });
 
 
