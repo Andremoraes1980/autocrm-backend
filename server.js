@@ -14,7 +14,6 @@ require('./jobs/agendador');
 const axios = require('axios');
 const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
-
 const express = require('express');
 const app = express();
 const http = require('http');methods:
@@ -25,8 +24,7 @@ const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); /
 const audioReenviado = require('./listeners/provider/audioReenviado');
 /** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
 const socketProvider = require('./connections/socketProviderV2');
-const receberMensagem = require('./listeners/provider/receberMensagemV2');
-
+//const receberMensagem = require('./listeners/provider/receberMensagemV2');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
@@ -51,13 +49,63 @@ const io = new Server(server, {
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
 socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
 
+io.on('connection', (socket) => {
+  console.log('🟢 [IO] Cliente conectado:', socket.id);
+
+  // Front entra na sala do lead (seu front já usa isso)
+  socket.on('entrarNaSala', ({ lead_id }) => {
+    if (!lead_id) {
+      console.warn(`⚠️ [IO] ${socket.id} tentou entrar sem lead_id`);
+      return;
+    }
+    const room = `lead-${lead_id}`;
+    socket.join(room);
+    console.log(`👥 [IO] ${socket.id} entrou na sala ${room}`);
+  });
+
+  // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
+  socket.on('mensagemRecebida', async (payload) => {
+    console.log('📥 [IO] mensagemRecebida recebida via io:', payload);
+
+    const { lead_id, telefone, mensagem } = payload || {};
+    if (lead_id) {
+      io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
+      console.log(`✅ [REPASSE] emitido para sala lead-${lead_id}`);
+      return;
+    }
+
+    // Fallback por telefone (usa seu serviço existente)
+    try {
+      const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone');
+      const telefoneBusca =
+        telefone || mensagem?.from || mensagem?.telefone || mensagem?.telefone_cliente;
+
+      if (!telefoneBusca) {
+        console.warn('⚠️ [IO] payload sem lead_id e sem telefone — não foi possível emitir.');
+        return;
+      }
+
+      const leadIdBanco = await buscarLeadIdPorTelefone(telefoneBusca);
+      if (leadIdBanco) {
+        io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { ...payload, lead_id: leadIdBanco });
+        console.log(`✅ [REPASSE] emitido por telefone para sala lead-${leadIdBanco}`);
+      } else {
+        console.warn('⚠️ [IO] telefone não localizado no banco:', telefoneBusca);
+      }
+    } catch (err) {
+      console.error('❌ [IO] erro no fallback por telefone:', err?.message || err);
+    }
+  });
+});
+
+
 
 // Listeners já modularizados corretamente:
 
 // 1. Repassa mensagens recebidas do provider
 // Arquivo: backend/listeners/provider/receberMensagem.js
 
-receberMensagem(socketProvider, io);
+
 
 // Arquivo: backend/listeners/provider/audioReenviado.js
 
