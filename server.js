@@ -41,7 +41,7 @@ const io = new Server(server, {
       "https://socket.autocrmleads.com.br",
       "http://localhost:5173"
     ],
-    methods: ["GET", "POST","OPTIONS"],
+    methods: ["GET", "POST",],
     credentials: true
   }
 });
