@@ -28,14 +28,18 @@ const receberMensagem = require('./listeners/provider/receberMensagem');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
-const createSocketServer = require('./connections/socketServer');
 const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 
 
 
+
+
+
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
 socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
+
+
 
 io.on('connection', (socket) => {
   console.log('🟢 [IO] Cliente conectado:', socket.id);
