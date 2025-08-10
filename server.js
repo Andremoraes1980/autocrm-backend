@@ -19,7 +19,7 @@ const app = express();
 const http = require('http');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
-const { Server } = require('socket.io');
+const createSocketServer = require('./connections/socketServer');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
 const audioReenviado = require('./listeners/provider/audioReenviado');
 /** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
@@ -30,6 +30,7 @@ const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
 const createSocketServer = require('./connections/socketServer');
 const io = createSocketServer(server);
+const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 
 
 
@@ -39,16 +40,8 @@ socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
 io.on('connection', (socket) => {
   console.log('🟢 [IO] Cliente conectado:', socket.id);
 
-  // Front entra na sala do lead (seu front já usa isso)
-  socket.on('entrarNaSala', ({ lead_id }) => {
-    if (!lead_id) {
-      console.warn(`⚠️ [IO] ${socket.id} tentou entrar sem lead_id`);
-      return;
-    }
-    const room = `lead-${lead_id}`;
-    socket.join(room);
-    console.log(`👥 [IO] ${socket.id} entrou na sala ${room}`);
-  });
+  entrarNaSala(socket, io);
+
 
   // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
   receberMensagem(socket, io);
