@@ -31,6 +31,8 @@ const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
 const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
+const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
+
 
 
 
