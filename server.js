@@ -623,45 +623,45 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
       });
     });
 
-     // 7) Atualiza status do reenvio e emite para a sala
-     console.log('🔵 Atualizando mensagem original no banco...', {
-      id: mensagem.id,
-      lead_id: mensagem.lead_id,
-      urlMp3Reenviado,
-      mensagemIdExterno: resultado.mensagemId
-    });
+     // 7) Atualiza status do reenvio (com coerção de id e fallback)
+    const msgIdCoerced = /^\d+$/.test(String(mensagem.id)) ? Number(mensagem.id) : String(mensagem.id);
+    const patch = {
+      mensagem_id_externo: resultado.mensagemId,
+      audio_reenviado: true,
+      audio_reenviado_em: new Date().toISOString(),
+      audio_reenviado_url: urlMp3Reenviado
+    };
 
-    const { data: updated, error: updErr } = await supabase
+    let { data: updated, error: updErr } = await supabase
       .from('mensagens')
-      .update({
-        mensagem_id_externo: resultado.mensagemId,
-        audio_reenviado: true,
-        audio_reenviado_em: new Date().toISOString(),
-        audio_reenviado_url: urlMp3Reenviado
-      })
-      .eq('id', mensagem.id)
-      .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url'); // retorna linha atualizada
+      .update(patch)
+      .eq('id', msgIdCoerced)
+      .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
+      .limit(1);
+
+    if (!updErr && (!updated || updated.length === 0) && msgIdCoerced !== mensagem.id) {
+      const resp2 = await supabase
+        .from('mensagens')
+        .update(patch)
+        .eq('id', mensagem.id)
+        .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
+        .limit(1);
+      updated = resp2.data;
+      updErr  = resp2.error;
+    }
 
     if (updErr) {
-      console.error('❌ Erro no UPDATE de reenvio:', updErr.message);
       return res.status(500).json({ error: 'Erro ao salvar status de reenvio: ' + updErr.message });
     }
     if (!updated || updated.length === 0) {
-      console.warn('⚠️ Nenhuma linha atualizada para id:', mensagem.id);
       return res.status(404).json({ error: 'Mensagem não encontrada para atualizar status de reenvio' });
     }
-
-    console.log('🟢 UPDATE ok:', updated[0]);
 
     // Emitir em tempo real para a sala do lead
     try {
       io.to(`lead-${mensagem.lead_id}`).emit('audioReenviado', { mensagemId: mensagem.id });
-      console.log('📣 Emitido "audioReenviado" para sala', `lead-${mensagem.lead_id}`);
-    } catch (e) {
-      console.warn('⚠️ Falha ao emitir "audioReenviado":', e.message);
-    }
+    } catch (_) {}
 
-    console.log('🟢 Reenvio concluído com sucesso!');
     return res.json({ status: 'ok', mensagemId: resultado.mensagemId });
 
   } catch (e) {
