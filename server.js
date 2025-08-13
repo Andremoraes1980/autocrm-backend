@@ -605,23 +605,24 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
     });
 
     // Aguarda confirmação (timeout 15s)
-    const resultado = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        console.error('🔴 Provider não respondeu em 15s');
-        reject(new Error('Provider não respondeu em 15s'));
-      }, 15000);
+const resultado = await new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => {
+    console.error('🔴 Provider não respondeu em 15s');
+    reject(new Error('Provider não respondeu em 15s'));
+  }, 15000);
 
-      socketProvider.once('audioReenviado', (data) => {
-        clearTimeout(timeout);
-        console.log('🟢 Provider confirmou envio:', data);
-        resolve(data);
-      });
-      socketProvider.once('erroReenvioAudio', (err) => {
-        clearTimeout(timeout);
-        console.error('🔴 Provider retornou erro:', err);
-        reject(new Error(err || "Falha ao reenviar áudio"));
-      });
-    });
+  socketProvider.once('audioReenviado', (data) => {
+    clearTimeout(timeout);
+    console.log('🟢 Provider confirmou envio:', data);
+    resolve(data);
+  });
+  socketProvider.once('erroReenvioAudio', (err) => {
+    clearTimeout(timeout);
+    console.error('🔴 Provider retornou erro:', err);
+    reject(new Error(err || "Falha ao reenviar áudio"));
+  });
+});
+
 
      // 7) Atualiza status do reenvio (com coerção de id e fallback)
     const msgIdCoerced = /^\d+$/.test(String(mensagem.id)) ? Number(mensagem.id) : String(mensagem.id);
