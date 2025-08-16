@@ -203,16 +203,18 @@ io.on('connection', (socket) => {
   entrarNaSala(socket, io);
 
   // 🔁 Ponte para ACKs vindos do provider via socketBackend (canal B)
-socket.off('statusEnvio'); // evita múltiplos handlers ao reconectar
-socket.on('statusEnvio', (evt) => {
+const handleBridgeStatusEnvio = (evt) => {
   try {
     console.log('🔁 [BACK] Bridge statusEnvio (io→socketProvider):', evt);
-    // Reaproveita o mesmo handler já registrado em socketProvider.on('statusEnvio')
+    // (por enquanto mantém o repasse; no próximo passo vamos direcionar ao handler local)
     socketProvider.emit?.('statusEnvio', evt);
   } catch (e) {
     console.error('💥 [BACK] Bridge statusEnvio erro:', e);
   }
-});
+};
+
+socket.off?.('statusEnvio', handleBridgeStatusEnvio); // precisa do listener aqui
+socket.on('statusEnvio', handleBridgeStatusEnvio);
 
 
 
