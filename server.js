@@ -125,23 +125,55 @@ async function handleStatusEnvio(evt = {}) {
 if (!alvo) {
   const raw = String(para || '');
   const digits = raw.replace(/\D/g, '');
-  const digitsNo55 = digits.replace(/^55/, '');           // tenta sem DDI 55
+  const digitsNo55 = digits.replace(/^55/, '');
   const candidatos = Array.from(new Set([digits, digitsNo55])).filter(Boolean);
 
   console.log("🧪[BACK] fallback por telefone_cliente:", { candidatos });
 
-  const { data: rowsTel, error: errTel } = await supabase
+  // Tentativa A — match EXATO (com/sem 55)
+  let alvoRow = null;
+  let respA = await supabase
     .from('mensagens')
-    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at')
+    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at, criado_em')
     .eq('direcao', 'saida')
     .is('mensagem_id_externo', null)
-    .in('telefone_cliente', candidatos)                    // aceita com 55 e sem 55
-    .order('created_at', { ascending: false })            // usa created_at (ajuste se sua coluna for outra)
+    .in('telefone_cliente', candidatos)
+    .order('created_at', { ascending: false })
     .limit(1);
 
-  if (!errTel && rowsTel?.[0]) {
-    alvo = rowsTel[0];
+  if (respA.error) {
+    console.error('❌[BACK] fallback A error:', respA.error);
+  } else {
+    alvoRow = respA.data?.[0] || null;
+  }
+
+  // Tentativa B — formatos variados (telefone com máscara), usa ILIKE
+  if (!alvoRow) {
+    const pattern1 = `%${digits}%`;
+    const pattern2 = `%${digitsNo55}%`;
+    console.log("🧪[BACK] fallback ILIKE:", { pattern1, pattern2 });
+
+    const respB = await supabase
+      .from('mensagens')
+      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at, criado_em')
+      .eq('direcao', 'saida')
+      .is('mensagem_id_externo', null)
+      .or(`telefone_cliente.ilike.${pattern1},telefone_cliente.ilike.${pattern2}`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (respB.error) {
+      console.error('❌[BACK] fallback B error:', respB.error);
+    } else {
+      alvoRow = respB.data?.[0] || null;
+    }
+  }
+
+  if (alvoRow) {
+    alvo = alvoRow;
     console.log("🧪[BACK] fallback HIT id:", alvo.id, "tel_banco:", alvo.telefone_cliente);
+  } else {
+    console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
   }
 }
 
