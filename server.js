@@ -134,11 +134,11 @@ if (!alvo) {
   let alvoRow = null;
   let respA = await supabase
     .from('mensagens')
-    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at, criado_em')
+    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em, criado_em')
     .eq('direcao', 'saida')
     .is('mensagem_id_externo', null)
     .in('telefone_cliente', candidatos)
-    .order('created_at', { ascending: false })
+    .order('criado_em', { ascending: false })
     .limit(1);
 
   if (respA.error) {
@@ -155,11 +155,11 @@ if (!alvo) {
 
     const respB = await supabase
       .from('mensagens')
-      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at, criado_em')
+      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em, criado_em')
       .eq('direcao', 'saida')
       .is('mensagem_id_externo', null)
       .or(`telefone_cliente.ilike.${pattern1},telefone_cliente.ilike.${pattern2}`)
-      .order('created_at', { ascending: false })
+      .order('criado_em', { ascending: false })
       .limit(1);
 
     if (respB.error) {
