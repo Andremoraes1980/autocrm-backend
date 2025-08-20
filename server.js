@@ -137,6 +137,7 @@ if (!alvo) {
     .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em')
     .eq('direcao', 'saida')
     .is('mensagem_id_externo', null)
+    .gte('ack', 1) 
     .in('telefone_cliente', candidatos)
     .order('criado_em', { ascending: false })
     .limit(1);
@@ -160,6 +161,7 @@ if (!alvo) {
       .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em')
       .eq('direcao', 'saida')
       .is('mensagem_id_externo', null)
+      .gte('ack', 1) 
       .or(orExpr)
       .order('criado_em', { ascending: false })
       .limit(1);
