@@ -292,7 +292,6 @@ socket.on('solicitarQrCode', () => {
   }
 });
 
-
   // 🔁 Ponte para ACKs vindos do provider via socketBackend (canal B)
 const handleBridgeStatusEnvio = (evt) => {
   try {
@@ -303,10 +302,6 @@ const handleBridgeStatusEnvio = (evt) => {
     console.error('💥 [BACK] Bridge statusEnvio erro:', e);
   }
 };
-
-if (ultimoQrCodeDataUrlRef.value) {
-  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-}
 
 
 socket.off?.('statusEnvio', handleBridgeStatusEnvio); // precisa do listener aqui
