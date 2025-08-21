@@ -251,6 +251,19 @@ if (!global.__statusEnvioBridgeRegistered) {
 }
 // --- END: listener statusEnvio único ---
 
+// === BEGIN: WhatsApp status bridge (provider -> fronts) ===
+if (!global.__whatsStatusBridgeRegistered) {
+  // ouça 1x o status vindo do provider
+  socketProvider?.off?.('whatsappStatus');
+  socketProvider?.on?.('whatsappStatus', (st = {}) => {
+    // se conectou, geralmente o QR perde a validade
+    if (st.connected) ultimoQrCodeDataUrlRef.value = null;
+    io.emit('whatsappStatus', st); // repassa p/ todos os clientes web
+  });
+  global.__whatsStatusBridgeRegistered = true;
+}
+// === END: WhatsApp status bridge ===
+
 
 
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
@@ -262,6 +275,23 @@ io.on('connection', (socket) => {
   console.log('🟢 [IO] Cliente conectado:', socket.id);
 
   entrarNaSala(socket, io);
+
+  // Se já temos QR em cache, envia imediatamente para ESTE cliente
+if (ultimoQrCodeDataUrlRef.value) {
+  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+}
+
+// Front clicou em "Conectar" -> tenta mandar o QR do cache,
+// senão pede status ao provider (ele responderá com whatsappStatus)
+socket.off('solicitarQrCode');
+socket.on('solicitarQrCode', () => {
+  if (ultimoQrCodeDataUrlRef.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+  } else {
+    socketProvider.emit?.('pedirStatus');
+  }
+});
+
 
   // 🔁 Ponte para ACKs vindos do provider via socketBackend (canal B)
 const handleBridgeStatusEnvio = (evt) => {
@@ -300,8 +330,8 @@ socket.on('statusEnvio', handleBridgeStatusEnvio);
 
 
 
-//  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
-// Arquivo: backend/listeners/provider/receberQrCode.js
+// 2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
+// agora passando a ref para cachear o último QR
 receberQrCode(socketProvider, io, ultimoQrCodeDataUrlRef);
 
 
