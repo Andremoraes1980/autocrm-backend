@@ -274,6 +274,11 @@ const handleBridgeStatusEnvio = (evt) => {
   }
 };
 
+if (ultimoQrCodeDataUrlRef.value) {
+  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+}
+
+
 socket.off?.('statusEnvio', handleBridgeStatusEnvio); // precisa do listener aqui
 socket.on('statusEnvio', handleBridgeStatusEnvio);
 
@@ -290,14 +295,14 @@ socket.on('statusEnvio', handleBridgeStatusEnvio);
 
 
 
-// Listeners já modularizados corretamente:
+
 
 
 
 
 //  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
 // Arquivo: backend/listeners/provider/receberQrCode.js
-receberQrCode(socketProvider, io);
+receberQrCode(socketProvider, io, ultimoQrCodeDataUrlRef);
 
 
 
