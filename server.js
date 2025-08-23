@@ -324,13 +324,16 @@ socket.emit('waStatus', { connected: !!global.__waReady });
 socketProvider.emit?.('pedirStatus');
 
 // 🛎️ Front pode pedir status explicitamente
-socket.off('pedirStatus');
-socket.on('pedirStatus', () => {
+const handleFrontPedirStatus = () => {
   // devolve imediatamente o snapshot local...
   socket.emit('waStatus', { connected: !!global.__waReady });
   // ...e ainda pede ao provider para confirmar/atualizar
   socketProvider.emit?.('pedirStatus');
-});
+};
+
+// limpa duplicatas da conexão atual e registra com a MESMA referência
+socket.removeAllListeners('pedirStatus'); // ← evita o ERR_INVALID_ARG_TYPE
+socket.on('pedirStatus', handleFrontPedirStatus);
 
 
 // 3) Atende pedidos explícitos de QR do front
