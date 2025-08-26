@@ -23,6 +23,7 @@ const QRCode = require('qrcode');
 const createSocketServer = require('./connections/socketServer');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
 /** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
+const socketProvider = require('./connections/socketProviderV2');
 const receberMensagem = require('./listeners/provider/receberMensagem');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
@@ -31,13 +32,20 @@ const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
 const { randomUUID } = require('crypto'); // sem dependência externa
-const socketProvider = require('./connections/socketProviderV2');
 
-// 🔌 Handshake: assim que conectar ao provider, peça o status atual
-socketProvider?.on?.('connect', () => {
-  console.log('🟢 [BACK] Conectado ao provider (io-client). id:', socketProvider?.id);
-  socketProvider.emit('pedirStatus');
-});
+
+// === Estado local do backend para o status do WhatsApp ===
+let lastWaStatus = { connected: false, reason: 'boot', ts: Date.now() };
+
+function setWaStatus(payload = {}) {
+  lastWaStatus = {
+    connected: !!payload.connected,
+    reason: payload.reason || null,
+    ts: Date.now(),
+  };
+  // log enxuto (evita spam)
+  console.log('🔁 [BACK] waStatus ATUALIZADO →', lastWaStatus);
+}
 
 
 
@@ -264,37 +272,54 @@ if (!global.__statusEnvioRegistered) {
 // --- END: listener statusEnvio único ---
 
 
-// === BEGIN: WhatsApp status bridge (provider -> fronts) ===
-if (!global.__whatsStatusBridgeRegistered) {
-  const handleProviderStatus = (st = {}) => {
-    const connected = !!st.connected;
+// === WhatsApp status bridge (Provider -> Backend) ===
+if (!global.__waBridgeRegistered) {
+  global.__waBridgeRegistered = true;
 
-    // snapshot local para o "emit inicial" ao front
-    global.__waReady = connected;
+  // Zera handlers antigos
+  socketProvider.off?.('waStatus');
+  socketProvider.off?.('whatsappStatus');
+  socketProvider.off?.('whatsappReady');
+  socketProvider.off?.('whatsappDisconnected');
 
-    // conectado → QR deixa de ser necessário
-    if (connected) {
-      ultimoQrCodeDataUrlRef.value = null;
+  // Preferencial: waStatus (novo)
+  socketProvider.on('waStatus', (st = {}) => {
+    setWaStatus(st);                     // atualiza lastWaStatus {connected, reason, ts}
+
+    // (opcional) se você realmente usa esse ref para QR, mantenha a limpeza:
+    if (lastWaStatus.connected && global.ultimoQrCodeDataUrlRef?.value !== undefined) {
+      global.ultimoQrCodeDataUrlRef.value = null;
     }
 
-    // novo nome canônico + compat
-    io.emit('waStatus', { connected });
-    io.emit('whatsappStatus', { connected });
+    // Repassa para o front (nome canônico)
+    io.emit('waStatus', lastWaStatus);
 
-    if (connected) {
-      io.emit('whatsappReady');
-    } else {
-      io.emit('whatsappDisconnected', { reason: st.reason || null });
+    // (legado) apenas se ainda houver cliente antigo:
+    io.emit('whatsappStatus', lastWaStatus);
+  });
+
+  // Compat: whatsappStatus (legado do provider)
+  socketProvider.on('whatsappStatus', (st = {}) => {
+    setWaStatus(st);
+    if (lastWaStatus.connected && global.ultimoQrCodeDataUrlRef?.value !== undefined) {
+      global.ultimoQrCodeDataUrlRef.value = null;
     }
-  };
+    io.emit('waStatus', lastWaStatus);
+    io.emit('whatsappStatus', lastWaStatus); // legado
+  });
 
-  // limpa duplicatas e escuta nos DOIS nomes que o provider pode usar
-  socketProvider?.off?.('whatsappStatus');
-  socketProvider?.off?.('waStatus');
-  socketProvider?.on?.('whatsappStatus', handleProviderStatus);
-  socketProvider?.on?.('waStatus', handleProviderStatus);
+  // Auxiliares sem payload consistente
+  socketProvider.on('whatsappReady', () => {
+    setWaStatus({ connected: true });
+    io.emit('waStatus', lastWaStatus);
+    io.emit('whatsappStatus', lastWaStatus); // legado
+  });
 
-  global.__whatsStatusBridgeRegistered = true;
+  socketProvider.on('whatsappDisconnected', ({ reason } = {}) => {
+    setWaStatus({ connected: false, reason });
+    io.emit('waStatus', lastWaStatus);
+    io.emit('whatsappStatus', lastWaStatus); // legado
+  });
 }
 // === END: WhatsApp status bridge ===
 
@@ -318,45 +343,30 @@ if (ultimoQrCodeDataUrlRef?.value) {
 }
 
 // 2) Envia status atual de conexão do WhatsApp
-socket.emit('waStatus', { connected: !!global.__waReady });
+socket.emit('waStatus', lastWaStatus); // usa o estado da Etapa 2.1
 
-  // 🔄 Garante status fresco: pede ao provider assim que um front conectar
-socketProvider.emit?.('pedirStatus');
+const handleSendCachedQr = () => {
+  if (ultimoQrCodeDataUrlRef?.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value }); // entrega imediato
+  } else {
+    socketProvider.emit?.('gerarQRCode'); // pede novo ao provider
+  }
+};
+socket.off('getQrCode', handleSendCachedQr);
+socket.on('getQrCode', handleSendCachedQr);
+socket.off('solicitarQr', handleSendCachedQr);   // compat
+socket.on('solicitarQr', handleSendCachedQr);    // compat
 
-// 🛎️ Front pode pedir status explicitamente
-const handleFrontPedirStatus = () => {
-  // devolve imediatamente o snapshot local...
-  socket.emit('waStatus', { connected: !!global.__waReady });
-  // ...e ainda pede ao provider para confirmar/atualizar
+// --- pedirStatus (front -> backend) ---
+const handlePedirStatus = () => {
+  // devolve imediatamente o snapshot local
+  socket.emit('waStatus', lastWaStatus);
+  // e pede confirmação ao provider (que reemitirá para todos)
   socketProvider.emit?.('pedirStatus');
 };
 
-// limpa duplicatas da conexão atual e registra com a MESMA referência
-socket.removeAllListeners('pedirStatus'); // ← evita o ERR_INVALID_ARG_TYPE
-socket.on('pedirStatus', handleFrontPedirStatus);
-
-
-// 3) Atende pedidos explícitos de QR do front
-socket.removeAllListeners('getQrCode');
-const handleGetQrCode = () => {
-  if (ultimoQrCodeDataUrlRef?.value) {
-    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-  } else {
-    socketProvider.emit?.('gerarQRCode');
-  }
-};
-socket.on('getQrCode', handleGetQrCode);
-
-socket.removeAllListeners('solicitarQr');
-const handleSolicitarQr = () => {
-  if (ultimoQrCodeDataUrlRef?.value) {
-    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-  } else {
-    socketProvider.emit?.('gerarQRCode');
-  }
-};
-socket.on('solicitarQr', handleSolicitarQr);
-
+socket.off('pedirStatus', handlePedirStatus);
+socket.on('pedirStatus', handlePedirStatus);
 
 
   // define handler no MESMO escopo do off/on
@@ -374,10 +384,7 @@ socket.on('solicitarQr', handleSolicitarQr);
   socket.off('statusEnvio', handleBridgeStatusEnvio);
   socket.on('statusEnvio', handleBridgeStatusEnvio);
 
-  // entrega QR em cache ao cliente recém-conectado (se houver)
-  if (ultimoQrCodeDataUrlRef?.value) {
-    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-  }
+  
 
   // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
   receberMensagem(socket, io);
