@@ -40,7 +40,7 @@ let lastWaStatus = { connected: false, reason: 'boot', ts: Date.now() };
 function setWaStatus(payload = {}) {
   lastWaStatus = {
     connected: !!payload.connected,
-    reason: payload.reason || null,
+    reason: payload.reason ?? null,
     ts: Date.now(),
   };
   // log enxuto (evita spam)
@@ -49,6 +49,11 @@ function setWaStatus(payload = {}) {
 
 // === helper para logar todos os emits ao front ===
 function debugEmitToFront(event, payload) {
+  if (!io) {
+    console.warn('⚠️ [BACK] io indisponível para emitir', event);
+    return;
+  }
+  
   const count = io?.sockets?.sockets?.size ?? 0;
   console.log(`📤 [BACK→FRONT] emit ${event} para ${count} socket(s):`, payload);
   io.emit(event, payload);
@@ -374,7 +379,7 @@ socket.on('solicitarQr', handleSendCachedQr);    // compat
 // --- pedirStatus (front -> backend) ---
 const handlePedirStatus = () => {
   console.log(`📩 [FRONT→BACK ${socket.id}] pedirStatus`);
-  
+
   // devolve imediatamente o snapshot local
   socket.emit('waStatus', lastWaStatus);
   console.log(`📬 [BACK→${socket.id}] reply snapshot waStatus:`, lastWaStatus);
