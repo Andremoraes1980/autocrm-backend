@@ -53,7 +53,7 @@ function debugEmitToFront(event, payload) {
     console.warn('⚠️ [BACK] io indisponível para emitir', event);
     return;
   }
-  
+
   const count = io?.sockets?.sockets?.size ?? 0;
   console.log(`📤 [BACK→FRONT] emit ${event} para ${count} socket(s):`, payload);
   io.emit(event, payload);
@@ -390,6 +390,42 @@ const handlePedirStatus = () => {
 
 socket.off('pedirStatus', handlePedirStatus);
 socket.on('pedirStatus', handlePedirStatus);
+
+// --- Provider -> Backend: status de WhatsApp neste socket ---
+const handleWaStatusFromProvider = (st = {}) => {
+  console.log(`📥 [BACK←${socket.id}] waStatus RX:`, st);
+  setWaStatus(st);                          // atualiza lastWaStatus
+  debugEmitToFront('waStatus', lastWaStatus); // rebroadcast p/ fronts
+};
+socket.off('waStatus', handleWaStatusFromProvider);
+socket.on('waStatus', handleWaStatusFromProvider);
+
+// (compat) alguns providers antigos ainda usam 'whatsappStatus'
+const handleWhatsStatusLegacy = (st = {}) => {
+  console.log(`📥 [BACK←${socket.id}] whatsappStatus RX:`, st);
+  setWaStatus(st);
+  debugEmitToFront('waStatus', lastWaStatus);
+};
+socket.off('whatsappStatus', handleWhatsStatusLegacy);
+socket.on('whatsappStatus', handleWhatsStatusLegacy);
+
+// (compat) eventos sem payload consistente
+const handleWhatsReady = () => {
+  console.log(`📥 [BACK←${socket.id}] whatsappReady RX`);
+  setWaStatus({ connected: true });
+  debugEmitToFront('waStatus', lastWaStatus);
+};
+socket.off('whatsappReady', handleWhatsReady);
+socket.on('whatsappReady', handleWhatsReady);
+
+const handleWhatsDisconnected = ({ reason } = {}) => {
+  console.log(`📥 [BACK←${socket.id}] whatsappDisconnected RX:`, reason);
+  setWaStatus({ connected: false, reason });
+  debugEmitToFront('waStatus', lastWaStatus);
+};
+socket.off('whatsappDisconnected', handleWhatsDisconnected);
+socket.on('whatsappDisconnected', handleWhatsDisconnected);
+
 
 
   // define handler no MESMO escopo do off/on
