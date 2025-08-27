@@ -362,6 +362,36 @@ io.on('connection', (socket) => {
   // - whatsappReady
   // - whatsappDisconnected
 
+  // --- Provider -> Backend: QR neste socket ---
+const handleQrFromProvider = async (data = {}) => {
+  try {
+    console.log(`📥 [BACK←${socket.id}] qrCode RX:`, typeof data, data?.qr ? `len=${String(data.qr).length}` : data);
+    const qrString = typeof data === 'string' ? data : data?.qr;
+    if (!qrString) {
+      console.error('❌ [BACK] QR inválido recebido:', data);
+      return;
+    }
+    // Gera DataURL para o front
+    const url = await QRCode.toDataURL(qrString);
+
+    // Evita rebroadcast se o QR não mudou
+    if (ultimoQrCodeDataUrlRef.value === url) {
+      console.log('ℹ️ [BACK] QR idêntico ao anterior — não reenviando.');
+      return;
+    }
+
+    // Atualiza cache e distribui para os fronts
+    ultimoQrCodeDataUrlRef.value = url;
+    debugEmitToFront('qrCode', { qr: url });
+    console.log('✅ [BACK] QR cache atualizado e distribuído (len:', url.length, ')');
+  } catch (e) {
+    console.error('💥 [BACK] Falha ao processar QR do provider:', e.message);
+  }
+};
+socket.off('qrCode', handleQrFromProvider);
+socket.on('qrCode', handleQrFromProvider);
+
+
   // 5) Outros eventos (seus)
   const handleBridgeStatusEnvio = (evt = {}) => {
     try {
