@@ -47,6 +47,14 @@ function setWaStatus(payload = {}) {
   console.log('🔁 [BACK] waStatus ATUALIZADO →', lastWaStatus);
 }
 
+// === helper para logar todos os emits ao front ===
+function debugEmitToFront(event, payload) {
+  const count = io?.sockets?.sockets?.size ?? 0;
+  console.log(`📤 [BACK→FRONT] emit ${event} para ${count} socket(s):`, payload);
+  io.emit(event, payload);
+}
+
+
 
 
 // helper: normaliza telefone → só dígitos com prefixo 55 (remove @c.us)
@@ -283,8 +291,8 @@ if (!global.__waBridgeRegistered) {
   socketProvider.off?.('whatsappDisconnected');
 
   // Preferencial: waStatus (novo)
-  socketProvider.on('waStatus', (st = {}) => {
-    setWaStatus(st);                     // atualiza lastWaStatus {connected, reason, ts}
+  socketProvider.on('waStatus', (st = {}) => {setWaStatus(st);  // atualiza lastWaStatus {connected, reason, ts}
+  console.log('📥 [BACK←PROVIDER] waStatus RX:', st);
 
     // (opcional) se você realmente usa esse ref para QR, mantenha a limpeza:
     if (lastWaStatus.connected && global.ultimoQrCodeDataUrlRef?.value !== undefined) {
@@ -292,7 +300,8 @@ if (!global.__waBridgeRegistered) {
     }
 
     // Repassa para o front (nome canônico)
-    io.emit('waStatus', lastWaStatus);
+    debugEmitToFront('waStatus', lastWaStatus);
+
 
     // (legado) apenas se ainda houver cliente antigo:
     io.emit('whatsappStatus', lastWaStatus);
@@ -301,23 +310,26 @@ if (!global.__waBridgeRegistered) {
   // Compat: whatsappStatus (legado do provider)
   socketProvider.on('whatsappStatus', (st = {}) => {
     setWaStatus(st);
+    console.log('📥 [BACK←PROVIDER] whatsappStatus RX:', st);
     if (lastWaStatus.connected && global.ultimoQrCodeDataUrlRef?.value !== undefined) {
       global.ultimoQrCodeDataUrlRef.value = null;
     }
-    io.emit('waStatus', lastWaStatus);
+    debugEmitToFront('waStatus', lastWaStatus);
+
     io.emit('whatsappStatus', lastWaStatus); // legado
   });
 
   // Auxiliares sem payload consistente
   socketProvider.on('whatsappReady', () => {
     setWaStatus({ connected: true });
-    io.emit('waStatus', lastWaStatus);
+    debugEmitToFront('waStatus', lastWaStatus);
+
     io.emit('whatsappStatus', lastWaStatus); // legado
   });
 
   socketProvider.on('whatsappDisconnected', ({ reason } = {}) => {
     setWaStatus({ connected: false, reason });
-    io.emit('waStatus', lastWaStatus);
+    debugEmitToFront('waStatus', lastWaStatus);
     io.emit('whatsappStatus', lastWaStatus); // legado
   });
 }
@@ -344,6 +356,8 @@ if (ultimoQrCodeDataUrlRef?.value) {
 
 // 2) Envia status atual de conexão do WhatsApp
 socket.emit('waStatus', lastWaStatus); // usa o estado da Etapa 2.1
+console.log(`📬 [BACK→${socket.id}] snapshot waStatus:`, lastWaStatus);
+
 
 const handleSendCachedQr = () => {
   if (ultimoQrCodeDataUrlRef?.value) {
@@ -359,8 +373,12 @@ socket.on('solicitarQr', handleSendCachedQr);    // compat
 
 // --- pedirStatus (front -> backend) ---
 const handlePedirStatus = () => {
+  console.log(`📩 [FRONT→BACK ${socket.id}] pedirStatus`);
+  
   // devolve imediatamente o snapshot local
   socket.emit('waStatus', lastWaStatus);
+  console.log(`📬 [BACK→${socket.id}] reply snapshot waStatus:`, lastWaStatus);
+
   // e pede confirmação ao provider (que reemitirá para todos)
   socketProvider.emit?.('pedirStatus');
 };
