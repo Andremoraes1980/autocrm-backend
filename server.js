@@ -404,6 +404,13 @@ socket.on('qrCode', handleQrFromProvider);
   socket.off('statusEnvio', handleBridgeStatusEnvio);
   socket.on('statusEnvio', handleBridgeStatusEnvio);
 
+  // ✅ ACK do heartbeat vindo do provider (prova de vida real)
+socket.on('provider:ping', (payload, ack) => {
+  // opcional: medir latência → const rtt = Date.now() - (payload?.sentAt || 0);
+  if (typeof ack === 'function') ack('ok');
+});
+
+
   // PROVIDER → BACKEND: mensagens etc.
   receberMensagem(socket, io);
 
