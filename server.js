@@ -1256,6 +1256,13 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
   res.json(data);
 });
 
+// 🔎 Healthcheck simples para keep-alive do Render
+app.get('/healthz', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.status(200).send('ok');
+});
+
+
 
 
 // Inicializa servidor
