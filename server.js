@@ -17,8 +17,13 @@ const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
 const express = require('express');
 const app = express();
+
 const http = require('http');
 const server = http.createServer(app);
+// 👇 evita idle close por proxy
+server.keepAliveTimeout = 65_000;  // > pingInterval
+server.headersTimeout   = 66_000;
+
 const QRCode = require('qrcode');
 const createSocketServer = require('./connections/socketServer');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
