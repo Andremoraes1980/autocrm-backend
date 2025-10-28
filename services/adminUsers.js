@@ -1,24 +1,15 @@
 // autocrm-backend/services/adminUsers.js
-import express from 'express';
-import { requireAuth } from '../middlewares/requireAuth.js';
-import { supabaseAdmin } from '../config/supabaseAdmin.js';
+const express = require('express');
+const { requireAuth } = require('../middlewares/requireAuth.js');
+const { supabaseAdmin } = require('../config/supabaseAdmin.js');
 
 const router = express.Router();
 
 /**
  * POST /admin/users
- * Body esperado:
- * {
- *   nome: string,
- *   email: string,
- *   senha: string,
- *   telefone?: string,
- *   tipo?: 'vendedor' | 'gerente' | 'admin',
- *   ativo?: boolean
- * }
- * - Usa req.auth.revenda_id do admin autenticado.
- * - Cria usuário no Auth (Service Role) e upsert na tabela `usuarios`.
- * - NÃO retorna session/token.
+ * Body:
+ * { nome, email, senha, telefone?, tipo? ('vendedor'|'gerente'|'admin'), ativo? }
+ * Usa req.auth.revenda_id do admin logado. NÃO retorna session/token.
  */
 router.post('/', requireAuth({ requireAdmin: true }), async (req, res) => {
   try {
@@ -32,15 +23,13 @@ router.post('/', requireAuth({ requireAdmin: true }), async (req, res) => {
       return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha.' });
     }
 
-    // 1) Cria usuário no AUTH (Service Role). NÃO retorna session.
+    // 1) Cria no Auth (Service Role). NÃO retorna session.
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: senha,
-      email_confirm: true, // marque como confirmado (ajuste se preferir convite)
+      email_confirm: true,
     });
-
     if (createErr) {
-      // Possível conflito de e-mail já existente
       return res.status(409).json({ error: `Auth createUser falhou: ${createErr.message}` });
     }
 
@@ -49,7 +38,7 @@ router.post('/', requireAuth({ requireAdmin: true }), async (req, res) => {
       return res.status(500).json({ error: 'Auth não retornou o ID do novo usuário.' });
     }
 
-    // 2) Upsert na tabela `usuarios` com o mesmo ID do Auth
+    // 2) Upsert na tabela `usuarios`
     const perfil = {
       id: newUserId,
       nome: String(nome).trim(),
@@ -65,7 +54,7 @@ router.post('/', requireAuth({ requireAdmin: true }), async (req, res) => {
       .upsert(perfil, { onConflict: 'id' });
 
     if (perfilErr) {
-      // rollback (opcional): deletar usuário do auth se o perfil falhar
+      // opcional: rollback do user no Auth
       // await supabaseAdmin.auth.admin.deleteUser(newUserId);
       return res.status(500).json({ error: `Falha ao salvar perfil: ${perfilErr.message}` });
     }
@@ -77,4 +66,4 @@ router.post('/', requireAuth({ requireAdmin: true }), async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

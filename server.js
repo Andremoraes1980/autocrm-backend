@@ -1,7 +1,7 @@
 // backend/server.js
 
 require('dotenv').config();
-import adminUsersRouter from './services/adminUsers.js';
+const adminUsersRouter = require('./services/adminUsers.js');
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
