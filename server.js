@@ -19,6 +19,24 @@ const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
 const express = require('express');
 const app = express();
+// ✅ CORS precisa vir ANTES das rotas para liberar o preflight (OPTIONS)
+const corsOptions = {
+  origin: [
+    "https://autocrmleads.vercel.app",
+    "https://autocrmleads.com.br",
+    "https://www.autocrmleads.com.br",
+    "http://localhost:5173"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+// responde ao preflight automaticamente
+app.options('*', cors(corsOptions));
+
+console.log("✅ CORS habilitado no topo (antes das rotas)");
+
 
 const http = require('http');
 const server = http.createServer(app);
@@ -449,19 +467,6 @@ app.use(express.json()); // <- MOVIDO PARA O TOPO
 
 app.use('/admin/users', adminUsersRouter);
 
-
-// Habilita CORS apenas para seus domínios de produção
-app.use(cors({
-  origin: [
-    "https://autocrmleads.vercel.app",
-    "https://autocrmleads.com.br",
-    "https://www.autocrmleads.com.br",
-    "http://localhost:5173" // remove depois se não for usar local
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-}));
-console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
 
 
 // Log origem da requisição
