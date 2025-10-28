@@ -447,6 +447,9 @@ receberQrCode(socketProvider, io, ultimoQrCodeDataUrlRef);
 // Middleware para aceitar JSON
 app.use(express.json()); // <- MOVIDO PARA O TOPO
 
+app.use('/admin/users', adminUsersRouter);
+
+
 // Habilita CORS apenas para seus domínios de produção
 app.use(cors({
   origin: [
