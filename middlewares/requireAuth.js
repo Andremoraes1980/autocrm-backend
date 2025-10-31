@@ -1,12 +1,13 @@
 // autocrm-backend/middlewares/requireAuth.js
 const { supabaseAnon } = require('../config/supabaseAnon.js');
+const { supabaseAdmin } = require('../config/supabaseAdmin.js');
 
 /**
- * Middleware de autenticação com diagnósticos claros:
- * - 401: sem token / token inválido
- * - 500: erro ao carregar perfil
- * - 403 + {error:"profile_not_found"}: não achou linha em public.usuarios (provável RLS/política faltando)
- * - 403 + {error:"not_admin"}: encontrou perfil, mas não é admin
+ * Valida JWT com anon; busca perfil com Service Role (apenas do próprio id).
+ * Retornos diagnósticos:
+ * - 401: missing_token / invalid_or_expired_token
+ * - 500: profile_query_failed
+ * - 403: not_admin
  */
 function requireAuth({ requireAdmin = true } = {}) {
   return async function (req, res, next) {
@@ -19,42 +20,35 @@ function requireAuth({ requireAdmin = true } = {}) {
         return res.status(401).json({ error: 'missing_token' });
       }
 
-      // Valida token e obtém user
+      // 1) Valida o token e pega userId
       const { data: userData, error: userErr } = await supabaseAnon.auth.getUser(token);
       if (userErr || !userData?.user) {
         return res.status(401).json({ error: 'invalid_or_expired_token' });
       }
-
       const userId = userData.user.id;
       const email = userData.user.email || null;
 
-      // Tenta ler o perfil na tabela `usuarios` usando o token do próprio usuário (RLS aplicando aqui)
-      const { data: perfil, error: perfilErr } = await supabaseAnon
+      // 2) Busca perfil com Service Role, mas **somente** da própria linha
+      const { data: perfil, error: perfilErr } = await supabaseAdmin
         .from('usuarios')
         .select('revenda_id, tipo')
         .eq('id', userId)
         .maybeSingle();
 
       if (perfilErr) {
-        console.error('[requireAuth] perfilErr:', perfilErr);
+        console.error('[requireAuth] profile_query_failed:', perfilErr);
         return res.status(500).json({ error: 'profile_query_failed', message: perfilErr.message });
       }
 
-      // Se não encontrou linha, é diferente de "não admin".
       if (!perfil) {
-        console.warn('[requireAuth] profile_not_found para userId:', userId);
-        return res.status(403).json({
-          error: 'profile_not_found',
-          userId,
-          hint: 'Crie a linha em public.usuarios para este id OU ajuste a policy SELECT (id = auth.uid()).'
-        });
+        // Mesmo com Service Role não achou linha — dados inconsistentes
+        return res.status(403).json({ error: 'profile_not_found_admin_lookup', userId });
       }
 
-      const revenda_id = perfil?.revenda_id ?? null;
-      const tipo = (perfil?.tipo || '').toLowerCase();
+      const revenda_id = perfil.revenda_id ?? null;
+      const tipo = (perfil.tipo || '').toLowerCase();
 
       if (requireAdmin && tipo !== 'admin') {
-        console.warn('[requireAuth] not_admin:', { userId, tipo });
         return res.status(403).json({ error: 'not_admin', tipo });
       }
 
