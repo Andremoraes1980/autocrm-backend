@@ -5,8 +5,9 @@ const adminUsersRouter = require('./services/adminUsers.js');
 
 console.log("🧠 BACKEND iniciado com Supabase:");
 console.log("🔑 SUPABASE_URL:", process.env.SUPABASE_URL);
-console.log("🔐 SUPABASE_KEY (primeiros 20):", process.env.SUPABASE_KEY?.substring(0, 20));
-console.log("🔒 SUPABASE_KEY (últimos 20):", process.env.SUPABASE_KEY?.slice(-20));
+console.log("🔐 SUPABASE_SERVICE_ROLE_KEY (primeiros 20):", process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20));
+console.log("🔒 SUPABASE_SERVICE_ROLE_KEY (últimos 20):", process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(-20));
+
 
 
 
