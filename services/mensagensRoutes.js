@@ -5,8 +5,26 @@ const { salvarMensagem } = require("../services/mensagensController");
 // 🔹 Rota principal para salvar mensagens vindas do provider
 router.post("/inserir", async (req, res) => {
   try {
-    console.log("📨 [BACKEND DEBUG] Requisição recebida em /api/mensagens/inserir");
-    console.log("🧾 [BACKEND DEBUG] Corpo recebido:", req.body);
+    console.log("📨 [BACKEND DEBUG] → Chegou requisição em /api/mensagens/inserir");
+console.log("🔹 Método:", req.method);
+console.log("🔹 URL:", req.originalUrl);
+console.log("🔹 Headers:", req.headers);
+
+try {
+  console.log("🔹 Tipo do body:", typeof req.body);
+  console.log("🔹 Conteúdo do req.body:", req.body);
+} catch (err) {
+  console.error("⚠️ Erro ao imprimir req.body:", err);
+}
+
+let rawBody = "";
+req.on("data", (chunk) => {
+  rawBody += chunk;
+});
+req.on("end", () => {
+  console.log("🔹 Conteúdo bruto recebido (rawBody):", rawBody);
+});
+
 
     // Validação mínima — para evitar undefined
     if (!req.body || typeof req.body !== "object") {
