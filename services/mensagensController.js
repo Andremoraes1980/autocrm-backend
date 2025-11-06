@@ -39,89 +39,85 @@ function sanitizeMensagem(dados) {
  */
 
 async function salvarMensagem({
-  canal = "whatsapp",
-  origem = "entrada",
-  telefone,
-  body,
-  vendedor_id = null,
-  revenda_id = null,
-  lead_id = null,
-  nome_cliente = null,
-}) {
-  try {
-    console.log("💾 [BACKEND DEBUG] Tentando salvar mensagem no Supabase...");
-    console.log("🧾 Dados recebidos:", {
-      canal,
-      origem,
-      telefone,
-      body,
-      vendedor_id,
-      revenda_id,
-      lead_id,
-      nome_cliente,
-    });
-
-    // Verifica se o Supabase está inicializado
-    if (!supabase) {
-      console.error("❌ [BACKEND DEBUG] Supabase não inicializado!");
-      throw new Error("Supabase client indefinido.");
+    canal = "whatsapp",
+    telefone,
+    body,
+    vendedor_id = null,
+    revenda_id = null,
+    lead_id = null,
+    nome_cliente = null,
+  }) {
+    try {
+      console.log("💾 [BACKEND DEBUG] Tentando salvar mensagem no Supabase...");
+      console.log("🧾 Dados recebidos:", {
+        canal,
+        telefone,
+        body,
+        vendedor_id,
+        revenda_id,
+        lead_id,
+        nome_cliente,
+      });
+  
+      // Verifica se o Supabase está inicializado
+      if (!supabase) {
+        console.error("❌ [BACKEND DEBUG] Supabase não inicializado!");
+        throw new Error("Supabase client indefinido.");
+      }
+  
+      // === Sanitização profissional antes do insert ===
+      const dados = {
+        canal: canal || "whatsapp",
+        direcao: "entrada",
+        telefone_cliente: telefone,
+        mensagem: body,
+        vendedor_id: vendedor_id || null,
+        revenda_id: revenda_id || null,
+        lead_id: lead_id || null,
+        nome_cliente: nome_cliente || telefone,
+        status_leitura: "recebida",
+      };
+  
+      // 🧩 Remove campos que não existem na tabela
+      const camposPermitidos = [
+        "canal",
+        "direcao",
+        "telefone_cliente",
+        "mensagem",
+        "vendedor_id",
+        "revenda_id",
+        "lead_id",
+        "status_leitura",
+      ];
+  
+      const dadosSanitizados = {};
+      for (const campo of camposPermitidos) {
+        if (dados[campo] !== undefined) dadosSanitizados[campo] = dados[campo];
+      }
+  
+      console.log("🧹 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
+  
+      // Faz o insert no Supabase apenas com campos válidos
+      const { data, error } = await supabase
+        .from("mensagens")
+        .insert([dadosSanitizados])
+        .select()
+        .single();
+  
+      // Verifica retorno
+      if (error) {
+        console.error("❌ [BACKEND DEBUG] Erro Supabase insert:", error);
+        return { success: false, error };
+      }
+  
+      console.log("✅ [BACKEND DEBUG] Mensagem salva com sucesso:", data);
+      return { success: true, data };
+    } catch (err) {
+      console.error("💥 [BACKEND DEBUG] Exceção inesperada:", err);
+      return { success: false, error: err.message };
     }
-
-    // === Sanitização profissional antes do insert ===
-const dados = {
-    canal: canal || "whatsapp",
-    direcao: origem || "entrada",
-    telefone_cliente: telefone,
-    mensagem: body,
-    vendedor_id: vendedor_id || null,
-    revenda_id: revenda_id || null,
-    lead_id: lead_id || null,
-    nome_cliente: nome_cliente || telefone,
-    origem: "whatsapp",
-    status_leitura: "recebida",
-  };
-  
-  // 🧩 Remove campos que não existem na tabela (como nome_cliente)
-  const camposPermitidos = [
-    "canal",
-    "direcao",
-    "telefone_cliente",
-    "mensagem",
-    "vendedor_id",
-    "revenda_id",
-    "lead_id",
-    "origem",
-    "status_leitura",
-  ];
-  
-  const dadosSanitizados = {};
-  for (const campo of camposPermitidos) {
-    if (dados[campo] !== undefined) dadosSanitizados[campo] = dados[campo];
   }
   
-  console.log("🧹 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
-  
-  // Faz o insert no Supabase apenas com campos válidos
-  const { data, error } = await supabase
-    .from("mensagens")
-    .insert([dadosSanitizados])
-    .select()
-    .single();
-  
-  // Verifica retorno
-  if (error) {
-    console.error("❌ [BACKEND DEBUG] Erro Supabase insert:", error);
-    return { success: false, error };
-  }
-  
-
-    console.log("✅ [BACKEND DEBUG] Mensagem salva com sucesso:", data);
-    return { success: true, data };
-  } catch (err) {
-    console.error("💥 [BACKEND DEBUG] Exceção inesperada:", err);
-    return { success: false, error: err.message };
-  }
-}
 
 /**
  * Retorna mensagens por telefone (opcional)
