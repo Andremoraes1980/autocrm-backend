@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { salvarMensagem } = require("../mensagensController");
+const { salvarMensagem } = require("./mensagensController");
+
 
 router.post("/inserir", async (req, res) => {
   console.log("📨 [BACKEND DEBUG] → Chegou requisição em /api/mensagens/inserir");
