@@ -63,6 +63,32 @@ async function salvarMensagem({
         console.error("❌ [BACKEND DEBUG] Supabase não inicializado!");
         throw new Error("Supabase client indefinido.");
       }
+
+      // 🔎 Busca automática do lead pelo telefone, se IDs não vierem preenchidos
+if (!lead_id || !vendedor_id || !revenda_id) {
+    const telefoneNumerico = telefone.replace(/\D/g, "");
+    console.log("📞 [BACKEND DEBUG] Buscando lead por telefone:", telefoneNumerico);
+  
+    const { data: leadsEncontrados, error: leadError } = await supabase
+      .from("leads")
+      .select("id, revenda_id, vendedor_id, nome")
+      .eq("telefone", telefoneNumerico)
+      .limit(1);
+  
+    if (leadError) {
+      console.error("❌ [BACKEND DEBUG] Erro ao buscar lead:", leadError);
+    } else if (leadsEncontrados && leadsEncontrados.length > 0) {
+      const lead = leadsEncontrados[0];
+      console.log("✅ [BACKEND DEBUG] Lead encontrado:", lead);
+      lead_id = lead.id;
+      revenda_id = lead.revenda_id;
+      vendedor_id = lead.vendedor_id;
+      nome_cliente = lead.nome;
+    } else {
+      console.log("⚠️ [BACKEND DEBUG] Nenhum lead encontrado para o telefone:", telefoneNumerico);
+    }
+  }
+  
   
       // === Preparar dados ===
       const dados = {
