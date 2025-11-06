@@ -26,6 +26,7 @@ const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
 const express = require('express');
 const app = express();
+
 // ✅ CORS precisa vir ANTES das rotas para liberar o preflight (OPTIONS)
 const corsOptions = {
   origin: [
@@ -43,6 +44,11 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 console.log("✅ CORS habilitado no topo (antes das rotas)");
+
+// Middleware JSON já está acima, então adicionamos as rotas:
+const mensagensRoutes = require("./services/mensagensRoutes");
+// Registrar rota das mensagens
+app.use("/api/mensagens", mensagensRoutes);
 
 
 const http = require('http');
