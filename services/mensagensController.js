@@ -39,7 +39,7 @@ function sanitizeMensagem(dados) {
  */
 
 async function salvarMensagem({
-    canal = "whatsapp",
+    canal = "WhatsApp Cockpit",
     telefone,
     body,
     vendedor_id = null,
@@ -59,26 +59,27 @@ async function salvarMensagem({
         nome_cliente,
       });
   
-      // Verifica se o Supabase está inicializado
       if (!supabase) {
         console.error("❌ [BACKEND DEBUG] Supabase não inicializado!");
         throw new Error("Supabase client indefinido.");
       }
   
-      // === Sanitização profissional antes do insert ===
+      // === Preparar dados ===
       const dados = {
-        canal: canal || "whatsapp",
+        canal,
         direcao: "entrada",
         telefone_cliente: telefone,
         mensagem: body,
-        vendedor_id: vendedor_id || null,
-        revenda_id: revenda_id || null,
-        lead_id: lead_id || null,
-        nome_cliente: nome_cliente || telefone,
-        status_leitura: "recebida",
+        vendedor_id,
+        revenda_id,
+        lead_id,
+        remetente: telefone,
+        remetente_nome: nome_cliente || telefone,
+        lida: false,
+        tipo: "texto",
       };
   
-      // 🧩 Remove campos que não existem na tabela
+      // === Sanitização ===
       const camposPermitidos = [
         "canal",
         "direcao",
@@ -87,7 +88,10 @@ async function salvarMensagem({
         "vendedor_id",
         "revenda_id",
         "lead_id",
-        "status_leitura",
+        "remetente",
+        "remetente_nome",
+        "lida",
+        "tipo",
       ];
   
       const dadosSanitizados = {};
@@ -97,14 +101,13 @@ async function salvarMensagem({
   
       console.log("🧹 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
   
-      // Faz o insert no Supabase apenas com campos válidos
+      // === Inserção no Supabase ===
       const { data, error } = await supabase
         .from("mensagens")
         .insert([dadosSanitizados])
         .select()
         .single();
   
-      // Verifica retorno
       if (error) {
         console.error("❌ [BACKEND DEBUG] Erro Supabase insert:", error);
         return { success: false, error };
@@ -112,11 +115,13 @@ async function salvarMensagem({
   
       console.log("✅ [BACKEND DEBUG] Mensagem salva com sucesso:", data);
       return { success: true, data };
+  
     } catch (err) {
       console.error("💥 [BACKEND DEBUG] Exceção inesperada:", err);
       return { success: false, error: err.message };
     }
   }
+  
   
 
 /**
