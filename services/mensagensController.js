@@ -66,14 +66,18 @@ async function salvarMensagem({
 
       // 🔎 Busca automática do lead pelo telefone, se IDs não vierem preenchidos
 if (!lead_id || !vendedor_id || !revenda_id) {
-    const telefoneNumerico = telefone.replace(/\D/g, "");
+    let telefoneNumerico = telefone.replace(/\D/g, "");
     console.log("📞 [BACKEND DEBUG] Buscando lead por telefone:", telefoneNumerico);
   
-    const { data: leadsEncontrados, error: leadError } = await supabase
-      .from("leads")
-      .select("id, revenda_id, vendedor_id, nome")
-      .eq("telefone", telefoneNumerico)
-      .limit(1);
+    // 🔍 Busca flexível de lead por telefone (formato nacional ou internacional)
+
+const sufixoBusca = telefoneNumerico.slice(-8); // últimos 8 dígitos bastam
+
+const { data: leadsEncontrados, error: leadError } = await supabase
+.from("leads")
+.select("id, revenda_id, vendedor_id, nome, telefone")
+.ilike("telefone", `%${sufixoBusca}%`)
+.limit(1);
   
     if (leadError) {
       console.error("❌ [BACKEND DEBUG] Erro ao buscar lead:", leadError);
