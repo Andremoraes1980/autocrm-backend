@@ -1,50 +1,40 @@
 const express = require("express");
 const router = express.Router();
-const { salvarMensagem } = require("../services/mensagensController");
+const { salvarMensagem } = require("../mensagensController");
 
-// 🔹 Rota principal para salvar mensagens vindas do provider
 router.post("/inserir", async (req, res) => {
+  console.log("📨 [BACKEND DEBUG] → Chegou requisição em /api/mensagens/inserir");
+
   try {
-    console.log("📨 [BACKEND DEBUG] → Chegou requisição em /api/mensagens/inserir");
-console.log("🔹 Método:", req.method);
-console.log("🔹 URL:", req.originalUrl);
-console.log("🔹 Headers:", req.headers);
+    // Se o body veio vazio, tenta recuperar o corpo bruto manualmente
+    let data = req.body;
+    if (!data || Object.keys(data).length === 0) {
+      let rawBody = "";
+      req.on("data", (chunk) => {
+        rawBody += chunk;
+      });
+      await new Promise((resolve) => req.on("end", resolve));
 
-try {
-  console.log("🔹 Tipo do body:", typeof req.body);
-  console.log("🔹 Conteúdo do req.body:", req.body);
-} catch (err) {
-  console.error("⚠️ Erro ao imprimir req.body:", err);
-}
+      console.log("🔹 rawBody recebido:", rawBody);
 
-let rawBody = "";
-req.on("data", (chunk) => {
-  rawBody += chunk;
-});
-req.on("end", () => {
-  console.log("🔹 Conteúdo bruto recebido (rawBody):", rawBody);
-});
-
-
-    // Validação mínima — para evitar undefined
-    if (!req.body || typeof req.body !== "object") {
-      console.error("⚠️ [BACKEND DEBUG] Corpo inválido na requisição:", req.body);
-      return res.status(400).json({ success: false, error: "Corpo inválido na requisição" });
+      try {
+        data = JSON.parse(rawBody);
+      } catch (err) {
+        console.error("⚠️ Erro ao converter rawBody para JSON:", err.message);
+      }
     }
 
-    // Chama o controller
-    const result = await salvarMensagem(req.body);
+    console.log("🧾 [BACKEND DEBUG] Dados finais a salvar:", data);
 
-    if (result.success === false) {
-      console.error("❌ [BACKEND DEBUG] Erro no salvarMensagem:", result.error);
-      return res.status(500).json({ success: false, error: result.error });
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error("Corpo inválido na requisição (vazio após parse)");
     }
 
-    console.log("✅ [BACKEND DEBUG] Mensagem salva com sucesso:", result.data);
-    res.status(200).json({ success: true, data: result.data });
+    const resultado = await salvarMensagem(data);
+    return res.status(200).json({ success: true, data: resultado });
   } catch (error) {
-    console.error("💥 [BACKEND DEBUG] Erro inesperado ao salvar mensagem:", error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ [BACKEND DEBUG] Erro ao salvar mensagem:", error);
+    return res.status(400).json({ success: false, error: error.message });
   }
 });
 
