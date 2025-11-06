@@ -1,6 +1,33 @@
 // backend/services/mensagensController.js
 const supabase = require("../config/supabase");
 
+// === Função de sanitização profissional ===
+// Mantém apenas os campos válidos da tabela mensagens
+function sanitizeMensagem(dados) {
+    const permitidos = [
+      "lead_id",
+      "mensagem",
+      "canal",
+      "tipo",
+      "direcao",
+      "telefone_cliente",
+      "vendedor_id",
+      "revenda_id",
+      "remetente",
+      "remetente_id",
+      "arquivo_url",
+      "nome_arquivo",
+      "arquivos",
+    ];
+  
+    const limpo = {};
+    for (const k of permitidos) {
+      if (dados[k] !== undefined) limpo[k] = dados[k];
+    }
+    return limpo;
+  }
+  
+
 /**
  * Salva uma nova mensagem no Supabase.
  * Aceita mensagens com ou sem lead vinculado (lead_id pode ser null).
@@ -40,31 +67,53 @@ async function salvarMensagem({
       throw new Error("Supabase client indefinido.");
     }
 
-    // Faz o insert
-    const { data, error } = await supabase
-      .from("mensagens")
-      .insert([
-        {
-          canal: canal || "whatsapp",
-          direcao: origem || "entrada",
-          telefone_cliente: telefone,
-          mensagem: body,
-          vendedor_id: vendedor_id || null,
-          revenda_id: revenda_id || null,
-          lead_id: lead_id || null,
-          nome_cliente: nome_cliente || telefone,
-          origem: "whatsapp",
-          status_leitura: "recebida",
-        },
-      ])
-      .select()
-      .single();
-
-    // Verifica retorno
-    if (error) {
-      console.error("❌ [BACKEND DEBUG] Erro Supabase insert:", error);
-      return { success: false, error };
-    }
+    // === Sanitização profissional antes do insert ===
+const dados = {
+    canal: canal || "whatsapp",
+    direcao: origem || "entrada",
+    telefone_cliente: telefone,
+    mensagem: body,
+    vendedor_id: vendedor_id || null,
+    revenda_id: revenda_id || null,
+    lead_id: lead_id || null,
+    nome_cliente: nome_cliente || telefone,
+    origem: "whatsapp",
+    status_leitura: "recebida",
+  };
+  
+  // 🧩 Remove campos que não existem na tabela (como nome_cliente)
+  const camposPermitidos = [
+    "canal",
+    "direcao",
+    "telefone_cliente",
+    "mensagem",
+    "vendedor_id",
+    "revenda_id",
+    "lead_id",
+    "origem",
+    "status_leitura",
+  ];
+  
+  const dadosSanitizados = {};
+  for (const campo of camposPermitidos) {
+    if (dados[campo] !== undefined) dadosSanitizados[campo] = dados[campo];
+  }
+  
+  console.log("🧹 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
+  
+  // Faz o insert no Supabase apenas com campos válidos
+  const { data, error } = await supabase
+    .from("mensagens")
+    .insert([dadosSanitizados])
+    .select()
+    .single();
+  
+  // Verifica retorno
+  if (error) {
+    console.error("❌ [BACKEND DEBUG] Erro Supabase insert:", error);
+    return { success: false, error };
+  }
+  
 
     console.log("✅ [BACKEND DEBUG] Mensagem salva com sucesso:", data);
     return { success: true, data };
