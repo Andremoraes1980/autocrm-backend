@@ -4,6 +4,9 @@ const entrarNaSala = require('../listeners/frontend/entrarNaSala');
 
 
 module.exports = function socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef) {
+  
+  console.log("🚀 [INIT] Listener entrarNaSala.js foi carregado pelo backend");
+
   io.on('connection', (socket) => {
     console.log("⚡ [SOCKET FRONTEND] Nova conexão do front:", socket.id);
   
