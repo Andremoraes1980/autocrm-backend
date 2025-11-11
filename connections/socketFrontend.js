@@ -1,10 +1,13 @@
 // Arquivo: backend/connections/socketFrontend.js
 
+console.log("🚀 [INIT] socketFrontend.js carregado com sucesso");
+
+
 const entrarNaSala = require('../listeners/frontend/entrarNaSala');
 
 
 module.exports = function socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef) {
-  
+
   console.log("🚀 [INIT] Listener entrarNaSala.js foi carregado pelo backend");
 
   io.on('connection', (socket) => {

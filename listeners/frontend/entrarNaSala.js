@@ -2,6 +2,9 @@
 
 // backend/listeners/frontend/entrarNaSala.js
 module.exports = function entrarNaSala(socket, io) {
+
+  console.log("🚀 [INIT] Listener entrarNaSala.js foi carregado pelo backend");
+
   socket.on('entrarNaSala', ({ lead_id }) => {
     console.log("⚡ [IO] Evento 'entrarNaSala' recebido pelo backend.");
     console.log("➡️  lead_id recebido:", lead_id);
