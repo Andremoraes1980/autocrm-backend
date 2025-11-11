@@ -4,10 +4,23 @@ const entrarNaSala = require('../listeners/frontend/entrarNaSala');
 
 
 module.exports = function socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef) {
-    io.on('connection', (socket) => {
-      console.log("🟢 Cliente socket front conectado:", socket.id);
+  io.on('connection', (socket) => {
+    console.log("⚡ [SOCKET FRONTEND] Nova conexão do front:", socket.id);
   
-      entrarNaSala(socket);
+    // 🔍 Loga qualquer evento que o front envie
+    socket.onAny((event, ...args) => {
+      console.log("📩 [DEBUG FRONT EVENTO]", event, args);
+    });
+  
+    // ✅ Mostra que o backend está pronto para ouvir entrarNaSala
+    console.log("📡 [SOCKET FRONTEND] Aguardando evento 'entrarNaSala'...");
+  
+    // Mantém o listener ativo
+    entrarNaSala(socket);
+  
+  
+  
+  
   
         // ======= TESTE REAL‑TIME =========
         // setTimeout(() => {
