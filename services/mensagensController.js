@@ -50,88 +50,130 @@ async function salvarMensagem({
     try {
       console.log("💾 [BACKEND DEBUG] Tentando salvar mensagem no Supabase...");
       console.log("🧾 Dados recebidos:", {
-        canal,
-        telefone,
-        body,
-        vendedor_id,
-        revenda_id,
-        lead_id,
-        nome_cliente,
+        canal, telefone, body, vendedor_id, revenda_id, lead_id, nome_cliente,
       });
   
       if (!supabase) {
         console.error("❌ [BACKEND DEBUG] Supabase não inicializado!");
         throw new Error("Supabase client indefinido.");
       }
-
-      // 🔎 Busca automática do lead pelo telefone, se IDs não vierem preenchidos
-if (!lead_id || !vendedor_id || !revenda_id) {
-    let telefoneNumerico = telefone.replace(/\D/g, "");
-    console.log("📞 [BACKEND DEBUG] Buscando lead por telefone:", telefoneNumerico);
   
-    // 🔍 Busca flexível de lead por telefone (formato nacional ou internacional)
-
-const sufixoBusca = telefoneNumerico.slice(-8); // últimos 8 dígitos bastam
-
-const { data: leadsEncontrados, error: leadError } = await supabase
-.from("leads")
-.select("id, revenda_id, vendedor_id, nome, telefone")
-.ilike("telefone", `%${sufixoBusca}%`)
-.limit(1);
+      // =========================
+      // 1) Resolver lead + snapshot do vendedor sempre pelo DB
+      // =========================
+      let leadRow = null;
   
-    if (leadError) {
-      console.error("❌ [BACKEND DEBUG] Erro ao buscar lead:", leadError);
-    } else if (leadsEncontrados && leadsEncontrados.length > 0) {
-      const lead = leadsEncontrados[0];
-      console.log("✅ [BACKEND DEBUG] Lead encontrado:", lead);
-      lead_id = lead.id;
-      revenda_id = lead.revenda_id;
-      vendedor_id = lead.vendedor_id;
-      nome_cliente = lead.nome;
-    } else {
-      console.log("⚠️ [BACKEND DEBUG] Nenhum lead encontrado para o telefone:", telefoneNumerico);
-    }
-  }
+      // (a) Se não temos IDs, tenta achar por telefone
+      if (!lead_id || !vendedor_id || !revenda_id) {
+        const telefoneNumerico = (telefone || "").replace(/\D/g, "");
+        console.log("📞 [BACKEND DEBUG] Buscando lead por telefone:", telefoneNumerico);
   
+        const sufixoBusca = telefoneNumerico.slice(-8);
+        const { data: leadsEncontrados, error: leadError } = await supabase
+          .from("leads")
+          .select("id, revenda_id, vendedor_id, nome, telefone")
+          .ilike("telefone", `%${sufixoBusca}%`)
+          .limit(1);
   
-      // === Preparar dados ===
-      const dados = {
+        if (leadError) {
+          console.error("❌ [BACKEND DEBUG] Erro ao buscar lead por telefone:", leadError);
+        } else if (leadsEncontrados && leadsEncontrados.length > 0) {
+          leadRow = leadsEncontrados[0];
+          console.log("✅ [BACKEND DEBUG] Lead encontrado por telefone:", leadRow);
+          lead_id   = leadRow.id;
+          revenda_id = leadRow.revenda_id;
+          vendedor_id = leadRow.vendedor_id;
+          nome_cliente = nome_cliente || leadRow.nome;
+        } else {
+          console.log("⚠️ [BACKEND DEBUG] Nenhum lead encontrado para o telefone.");
+        }
+      }
+  
+      // (b) Se já temos lead_id, garante snapshot mais recente do DB
+      if (lead_id && !leadRow) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("id, revenda_id, vendedor_id, nome, telefone")
+          .eq("id", lead_id)
+          .single();
+  
+        if (error) {
+          console.warn("⚠️ [BACKEND DEBUG] Falha ao buscar snapshot do lead:", error);
+        } else {
+          leadRow = data;
+          // sempre fotografa do DB (mesmo se veio algo no payload)
+          revenda_id   = data?.revenda_id ?? revenda_id;
+          vendedor_id  = data?.vendedor_id ?? vendedor_id;
+          nome_cliente = nome_cliente || data?.nome || null;
+        }
+      }
+  
+      // =========================
+      // 2) Montar registro normalizado para a tabela mensagens
+      // =========================
+      // Este endpoint é de RECEBIMENTO (provider) → direcao = 'entrada'
+      const direcao = "entrada";
+  
+      const registro = {
         canal,
-        direcao: "entrada",
-        telefone_cliente: telefone,
+        direcao,
+        telefone_cliente: telefone || null,
+  
         mensagem: body,
-        vendedor_id,
-        revenda_id,
-        lead_id,
-        remetente: telefone,
-        remetente_nome: nome_cliente || telefone,
-        lida: false,
         tipo: "texto",
+  
+        // chaves de relação / snapshots
+        lead_id: lead_id ?? null,
+        revenda_id: revenda_id ?? null,
+        vendedor_id: vendedor_id ?? null, // snapshot do responsável
+  
+        // remetente: cliente → id NULL (não é usuário), texto com telefone
+        remetente_id: null,
+        remetente: telefone || null,
+  
+        // meta
+        lida: false,
+        remetente_nome: nome_cliente || telefone || null, // ok se sua tabela ignorar, sanitize cobre
       };
   
-      // === Sanitização ===
+      console.log("🧹 [BACKEND DEBUG] Registro normalizado antes da sanitização:", registro);
+  
+      // =========================
+      // 3) Sanitização (usa a sua lista de permitidos)
+      // =========================
       const camposPermitidos = [
         "canal",
         "direcao",
         "telefone_cliente",
         "mensagem",
-        "vendedor_id",
-        "revenda_id",
-        "lead_id",
-        "remetente",
-        "remetente_nome",
-        "lida",
         "tipo",
+        "lead_id",
+        "revenda_id",
+        "vendedor_id",
+        "remetente_id",
+        "remetente",
+        "lida",
+        // se sua sanitize aceitar estes campos, mantenha; se não, serão ignorados sem erro:
+        "remetente_nome",
+        "nome_arquivo",
+        "arquivo_url",
+        "arquivos",
+        "ack",
+        "mensagem_id_externo",
       ];
   
       const dadosSanitizados = {};
       for (const campo of camposPermitidos) {
-        if (dados[campo] !== undefined) dadosSanitizados[campo] = dados[campo];
+        if (registro[campo] !== undefined) {
+          dadosSanitizados[campo] = registro[campo];
+        }
       }
   
-      console.log("🧹 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
+      console.log("🧼 [BACKEND DEBUG] Dados limpos antes de salvar:", dadosSanitizados);
   
-      // === Inserção no Supabase ===
+      // =========================
+      // 4) Persistir
+      // =========================
       const { data, error } = await supabase
         .from("mensagens")
         .insert([dadosSanitizados])
@@ -151,6 +193,7 @@ const { data: leadsEncontrados, error: leadError } = await supabase
       return { success: false, error: err.message };
     }
   }
+  
   
   
 
