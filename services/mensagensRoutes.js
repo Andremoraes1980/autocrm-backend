@@ -1,6 +1,6 @@
 const express = require('express');
 const { normalizarMensagem } = require('../utils/normalizarMensagem');
-const { salvarMensagem } = require('../mensagensController');
+const { salvarMensagem } = require('../services/mensagensController');
 const buscarLeadIdPorTelefone = require('../services/buscarLeadIdPorTelefone');
 const { emitirParaFront } = require('../emissorFront');
 
