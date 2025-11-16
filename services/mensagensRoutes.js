@@ -33,6 +33,7 @@ module.exports = function (io) {
 
       // [4] Salvar a mensagem no banco
       const resultado = await salvarMensagem(data);
+      console.log("[DEBUG RESULTADO SALVAR]", resultado);
 
       if (!resultado.success) {
         console.error("❌ [4A] Falha ao salvar mensagem:", resultado.error);
