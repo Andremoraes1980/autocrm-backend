@@ -46,7 +46,13 @@ module.exports = function (io) {
   
       // [6] Normalizar formato para o front
       const canal = data.canal || 'WhatsApp';
-      const mensagemNormalizada = normalizarMensagem(data, data.lead_id, canal);
+      
+      // Garante que o ID salvo seja refletido no objeto emitido
+const mensagemNormalizada = normalizarMensagem(data, data.lead_id, canal);
+
+// Se o Supabase retornou um ID (que é o verdadeiro), atualiza o objeto
+if (resultado?.data?.id) {
+  mensagemNormalizada.id = resultado.data.id;}
   
       console.log("[📦 6] Mensagem normalizada pronta para emitir:", mensagemNormalizada);
   
