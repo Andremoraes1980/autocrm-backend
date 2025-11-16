@@ -46,7 +46,7 @@ app.options('*', cors(corsOptions));
 console.log("✅ CORS habilitado no topo (antes das rotas)");
 
 // Middleware JSON já está acima, então adicionamos as rotas:
-const mensagensRoutes = require("./services/mensagensRoutes");
+const mensagensRoutes = require("./services/mensagensRoutes")(io);
 // Registrar rota das mensagens
 app.use("/api/mensagens", mensagensRoutes);
 
