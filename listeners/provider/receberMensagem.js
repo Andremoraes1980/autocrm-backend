@@ -26,41 +26,40 @@ function normalizarMensagem(payload, leadId) {
  * Mantém o MESMO nome/função: receberMensagem
  * Agora ela registra o listener no socket do IO (onde o provider se conecta)
  */
-module.exports = function receberMensagem(socket, io) {
-  socket.on('mensagemRecebida', async (payload) => {
-    console.log('📥 [IO] mensagemRecebida via io:', payload);
+module.exports = function receberMensagem(socketProvider, io) {
+  console.log("📩 Listener receberMensagem.js foi carregado pelo backend");
 
-    const { lead_id, telefone, mensagem } = payload || {};
-
-    if (lead_id) {
-      const dataFront1 = normalizarMensagem(payload, lead_id);
-io.to(`lead-${lead_id}`).emit('mensagemRecebida', { success: true, data: dataFront1 });
-console.log(`✅ [REPASSE] emitido para sala lead-${lead_id} (id=${dataFront1.id})`);
-
-      return;
-    }
-
-    // Fallback por telefone
+  // Escuta mensagens vindas do Provider (ex: WhatsApp)
+  socketProvider.on("mensagem", async (payload) => {
     try {
-      const tel =
-        telefone || mensagem?.from || mensagem?.telefone || mensagem?.telefone_cliente;
+      console.log("📥 [Provider→Backend] Nova mensagem recebida:", payload);
 
-      if (!tel) {
-        console.warn('⚠️ [IO] payload sem lead_id e sem telefone — não foi possível emitir.');
+      // Extrai ou busca leadId
+      let leadId = payload?.lead_id;
+      if (!leadId && payload?.telefone) {
+        leadId = await buscarLeadIdPorTelefone(payload.telefone);
+        console.log("🔍 Lead ID obtido pelo telefone:", leadId);
+      }
+
+      if (!leadId) {
+        console.warn("⚠️ Nenhum lead_id encontrado para mensagem recebida:", payload);
         return;
       }
 
-      const leadIdBanco = await buscarLeadIdPorTelefone(tel);
-      if (leadIdBanco) {
-        const dataFront2 = normalizarMensagem(payload, leadIdBanco);
-io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { success: true, data: dataFront2 });
-console.log(`✅ [REPASSE] emitido por telefone para sala lead-${leadIdBanco} (id=${dataFront2.id})`);
+      // Normaliza mensagem
+      const mensagemNormalizada = normalizarMensagem(payload, leadId);
 
-      } else {
-        console.warn('⚠️ [IO] telefone não localizado no banco:', tel);
-      }
+      // Emite para o front específico do lead
+      const room = `lead-${leadId}`;
+      io.to(room).emit("mensagemRecebida", mensagemNormalizada);
+
+      console.log(`📤 [Backend→Front] Emitido mensagemRecebida para sala ${room}:`, mensagemNormalizada);
+
+      // Opcional: salvar no banco se quiser persistir
+      // await supabase.from('mensagens').insert([mensagemNormalizada]);
+
     } catch (err) {
-      console.error('❌ [IO] erro no fallback por telefone:', err?.message || err);
+      console.error("❌ Erro no listener receberMensagem.js:", err);
     }
   });
 };
