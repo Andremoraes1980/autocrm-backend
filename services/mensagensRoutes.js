@@ -46,18 +46,18 @@ module.exports = function (io) {
   
       // [6] Normalizar formato para o front
       const canal = data.canal || 'WhatsApp';
-
+      
       // Garante que o ID salvo seja refletido no objeto emitido
 const mensagemNormalizada = normalizarMensagem(data, data.lead_id, canal);
 
 // Se o Supabase retornou um ID (que é o verdadeiro), atualiza o objeto
-if (resultado?.data?.id) {
+if (resultado?.data?.id && !mensagemNormalizada.id) {
   mensagemNormalizada.id = resultado.data.id;}
   
       console.log("[📦 6] Mensagem normalizada pronta para emitir:", mensagemNormalizada);
   
       // [7] Emitir via socket centralizado
-      emitirParaFront(io, data.lead_id, 'mensagemRecebida', { mensagem: mensagemNormalizada });
+      emitirParaFront(io, data.lead_id, 'mensagemRecebida', mensagemNormalizada);
       console.log("[🚀 7] Evento 'mensagemRecebida' emitido para lead =", data.lead_id);
   
       // [8] Resposta HTTP ao provedor
