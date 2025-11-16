@@ -45,11 +45,6 @@ app.options('*', cors(corsOptions));
 
 console.log("✅ CORS habilitado no topo (antes das rotas)");
 
-// Middleware JSON já está acima, então adicionamos as rotas:
-const mensagensRoutes = require("./services/mensagensRoutes")(io);
-// Registrar rota das mensagens
-app.use("/api/mensagens", mensagensRoutes);
-
 
 const http = require('http');
 const server = http.createServer(app);
@@ -70,6 +65,11 @@ const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
 const { randomUUID } = require('crypto'); // sem dependência externa
+
+// Middleware JSON já está acima, então adicionamos as rotas:
+const mensagensRoutes = require("./services/mensagensRoutes")(io);
+// Registrar rota das mensagens
+app.use("/api/mensagens", mensagensRoutes);
 
 
 // === Estado local do backend para o status do WhatsApp ===

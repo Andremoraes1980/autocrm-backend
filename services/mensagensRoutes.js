@@ -2,6 +2,8 @@
 const express = require('express');
 const { normalizarMensagem } = require('../utils/normalizarMensagem');
 const { salvarMensagem } = require('./mensagensController');
+const buscarLeadIdPorTelefone = require('./buscarLeadIdPorTelefone');
+const { emitirParaFront } = require('./emissorFront');
 
 module.exports = function (io) {
   const router = express.Router();
@@ -25,19 +27,22 @@ module.exports = function (io) {
 
       console.log("📦 Payload recebido do provider:", data);
 
-      // salvar no banco (mantém sua lógica atual)
+      // Buscar ou definir lead_id
       const leadId = data.lead_id || await buscarLeadIdPorTelefone(data.telefone);
-      const resultado = await salvarMensagem(data);
 
-      // normalizar formato
+      // Salvar no banco
+      const resultado = await salvarMensagem(data);
+      if (!resultado.success) {
+        console.error("❌ Falha ao salvar mensagem:", resultado.error);
+        return res.status(500).json(resultado);
+      }
+
+      // Normalizar formato para o front
       const mensagemNormalizada = normalizarMensagem(data, leadId, data.canal || 'WhatsApp');
       console.log("📤 Mensagem normalizada pronta para emitir:", mensagemNormalizada);
 
-      // emitir ao front
-      const room = `lead-${leadId}`;
-      io.to(room).emit('mensagemRecebida', mensagemNormalizada);
-
-      console.log(`✅ Emitido 'mensagemRecebida' para sala ${room}`);
+      // Emitir via socket centralizado
+      emitirParaFront(io, leadId, 'mensagemRecebida', mensagemNormalizada);
 
       res.status(200).json({ sucesso: true });
     } catch (err) {
