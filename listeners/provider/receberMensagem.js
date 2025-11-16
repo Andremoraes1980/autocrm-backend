@@ -1,3 +1,8 @@
+socketProvider.on("mensagem", (payload) => {
+  console.log("🔥 ENTROU NO RECEBERMENSAGEM DO PROVIDER!");
+});
+
+
 // backend/listeners/provider/receberMensagem.js
 const buscarLeadIdPorTelefone = require('../../services/buscarLeadIdPorTelefone');
 const { randomUUID } = require('crypto');
