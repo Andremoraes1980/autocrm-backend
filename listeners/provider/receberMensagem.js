@@ -1,6 +1,4 @@
-socketProvider.on("mensagem", (payload) => {
-  console.log("🔥 ENTROU NO RECEBERMENSAGEM DO PROVIDER!");
-});
+
 
 
 // backend/listeners/provider/receberMensagem.js
@@ -36,6 +34,7 @@ module.exports = function receberMensagem(socketProvider, io) {
 
   // Escuta mensagens vindas do Provider (ex: WhatsApp)
   socketProvider.on("mensagem", async (payload) => {
+    console.log("🔥 ENTROU NO RECEBERMENSAGEM DO PROVIDER!");
     try {
       console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("📥 [Provider→Backend] EVENTO 'mensagem' RECEBIDO");
