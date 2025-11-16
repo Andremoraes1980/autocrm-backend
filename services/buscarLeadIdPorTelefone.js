@@ -1,20 +1,22 @@
-// Arquivo: backend/services/buscarLeadIdPorTelefone.js
-
 const supabase = require('../config/supabase');
 
 async function buscarLeadIdPorTelefone(telefone) {
-  // Formata o telefone para conter apenas dígitos
+  // Remove caracteres não numéricos
   const tel = telefone.replace(/\D/g, "");
 
   const { data, error } = await supabase
     .from('leads')
     .select('id')
-    .ilike('telefone', `%${tel}%`) // Usa ilike para buscar parcialmente
+    .ilike('telefone', `%${tel}%`)
     .limit(1)
     .maybeSingle();
 
   if (error || !data) return null;
-  return data.id;
+
+  // Compatível com ambas as estruturas de retorno do Supabase
+  const leadId = data?.id ?? data?.data?.id ?? null;
+
+  return leadId;
 }
 
 module.exports = buscarLeadIdPorTelefone;

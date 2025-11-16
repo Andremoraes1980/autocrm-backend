@@ -4,25 +4,8 @@
 // backend/listeners/provider/receberMensagem.js
 const buscarLeadIdPorTelefone = require('../../services/buscarLeadIdPorTelefone');
 const { randomUUID } = require('crypto');
+const { normalizarMensagem } = require('../../utils/normalizarMensagem');
 
-// Garante shape consistente para o front
-function normalizarMensagem(payload, leadId) {
-  const p = payload || {};
-  const base = p.data || p.mensagem || p; // tolera variações
-
-  return {
-    id: base.id ?? p.id ?? randomUUID(),              // sempre tem id
-    lead_id: leadId,                                  // sala do lead
-    remetente: base.remetente ?? base.telefone ?? p.telefone ?? null,
-    remetente_id: base.remetente_id ?? null,
-    vendedor_id: base.vendedor_id ?? null,
-    mensagem: base.mensagem ?? base.body ?? base.texto ?? '',
-    canal: base.canal ?? 'WhatsApp Cockpit',
-    tipo: base.tipo ?? 'texto',
-    lida: Boolean(base.lida ?? false),
-    criado_em: base.criado_em ?? new Date().toISOString(),
-  };
-}
 
 
 /**
