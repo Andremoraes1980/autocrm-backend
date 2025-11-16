@@ -32,7 +32,10 @@ module.exports = function receberMensagem(socketProvider, io) {
   // Escuta mensagens vindas do Provider (ex: WhatsApp)
   socketProvider.on("mensagem", async (payload) => {
     try {
-      console.log("📥 [Provider→Backend] Nova mensagem recebida:", payload);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("📥 [Provider→Backend] EVENTO 'mensagem' RECEBIDO");
+    console.log("Payload bruto recebido do provider:");
+    console.dir(payload, { depth: null });
 
       // Extrai ou busca leadId
       let leadId = payload?.lead_id;
@@ -48,12 +51,17 @@ module.exports = function receberMensagem(socketProvider, io) {
 
       // Normaliza mensagem
       const mensagemNormalizada = normalizarMensagem(payload, leadId);
+      console.log("📦 Mensagem normalizada:", mensagemNormalizada);
 
       // Emite para o front específico do lead
       const room = `lead-${leadId}`;
+      console.log(`📤 [Backend→Front] Tentando emitir evento 'mensagemRecebida' para sala: ${room}`);
+      console.log(`👥 Clientes conectados (esperado: 1+ se front entrou):`, io.sockets.adapter.rooms.get(room));
+
       io.to(room).emit("mensagemRecebida", mensagemNormalizada);
 
-      console.log(`📤 [Backend→Front] Emitido mensagemRecebida para sala ${room}:`, mensagemNormalizada);
+      console.log("✅ Emissão concluída. Mensagem enviada ao front-end com sucesso.");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
       // Opcional: salvar no banco se quiser persistir
       // await supabase.from('mensagens').insert([mensagemNormalizada]);
